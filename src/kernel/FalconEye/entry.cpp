@@ -18,11 +18,15 @@
 #include "entry.h"
 #include "..\libinfinityhook\infinityhook.h"
 
+PVOID64 NtBase;
+
 static wchar_t IfhMagicFileName[] = L"ifh--";
 
 static UNICODE_STRING StringNtCreateFile = RTL_CONSTANT_STRING(L"NtCreateFile");
-
 static NtCreateFile_t OriginalNtCreateFile = NULL;
+
+static UNICODE_STRING StringNtWriteVirtualMemory = RTL_CONSTANT_STRING(L"NtWriteVirtualMemory");
+static NtWriteVirtualMemory_t OriginalNtWriteVirtualMemory = NULL;
 
 /*
 *	The entry point of the driver. Initializes infinity hook and
@@ -39,7 +43,7 @@ extern "C" NTSTATUS DriverEntry(
 	// Figure out when we built this last for debugging purposes.
 	//
 	kprintf("[+] infinityhook: Loaded.\n");
-	
+
 	//
 	// Let the driver be unloaded gracefully. This also turns off 
 	// infinity hook.
@@ -55,6 +59,31 @@ extern "C" NTSTATUS DriverEntry(
 		kprintf("[-] infinityhook: Failed to locate export: %wZ.\n", StringNtCreateFile);
 		return STATUS_ENTRYPOINT_NOT_FOUND;
 	}
+
+	// For syscalls not exported, use NtBase and find the offset
+	// Use the NtCreateFile address to get Nt base
+	UCHAR* It = (UCHAR*)(PVOID64)OriginalNtCreateFile;
+	while (true)
+	{
+		It = (UCHAR*)(ULONG64(It - 1) & ~0xFFF);
+		if (PIMAGE_DOS_HEADER(It)->e_magic == IMAGE_DOS_SIGNATURE)
+		{
+			NtBase = It;
+			break;
+		}
+	}
+	if (NtBase)
+	{
+		kprintf("[+] infinityhook: NtBase: %p.\n", NtBase);
+	}
+	// Find NtWriteVirtualMemoryOffset
+	ULONG64 NtWriteVirtualMemoryOffset = GetFunctionOffset(&StringNtWriteVirtualMemory);
+	OriginalNtWriteVirtualMemory = (NtWriteVirtualMemory_t)((ULONG64)NtBase + NtWriteVirtualMemoryOffset);
+	if (OriginalNtWriteVirtualMemory)
+	{
+		kprintf("[+] infinityhook: NtWriteVirtualMemory: %p.\n", OriginalNtWriteVirtualMemory);
+	}
+	
 
 	//
 	// Initialize infinity hook. Each system call will be redirected
@@ -173,4 +202,20 @@ NTSTATUS DetourNtCreateFile(
 	// We're uninterested, call the original.
 	//
 	return OriginalNtCreateFile(FileHandle, DesiredAccess, ObjectAttributes, IoStatusBlock, AllocationSize, FileAttributes, ShareAccess, CreateDisposition, CreateOptions, EaBuffer, EaLength);
+}
+
+/*
+* Function to get offset of a given function
+* This offset is either hardcoded or parsed from symbols
+*/
+ULONG64 GetFunctionOffset(
+	PUNICODE_STRING funcName
+)
+{
+	ULONG64 offset = 0;
+	if(RtlEqualUnicodeString(funcName, &StringNtWriteVirtualMemory, TRUE))
+	{
+		offset = 0x6de8d0;
+	}
+	return offset;
 }

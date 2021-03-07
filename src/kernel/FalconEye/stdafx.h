@@ -24,8 +24,9 @@
 #include <ntdef.h>
 #include <ntddk.h>
 #include <ntstatus.h>
+#include <ntimage.h>
 
-#include "..\libinfinityhook\ntint.h"
+//#include "..\libinfinityhook\ntint.h"
 #pragma warning(pop)
 
 #include "helpers.h"

@@ -33,6 +33,13 @@ typedef NTSTATUS(*NtCreateFile_t)(
 	_In_reads_bytes_opt_(EaLength) PVOID EaBuffer,
 	_In_ ULONG EaLength);
 
+typedef NTSTATUS(*NtWriteVirtualMemory_t)(
+	_In_ HANDLE ProcessHandle,
+	_In_ PVOID BaseAddress,
+	_In_ PVOID Buffer,
+	_In_ ULONG NumberOfBytesToWrite,
+	_Out_opt_ PULONG NumberOfBytesWritten);
+
 ///
 /// Forward declarations.
 ///
@@ -46,6 +53,10 @@ void __fastcall SyscallStub(
 	_In_ unsigned int SystemCallIndex, 
 	_Inout_ void** SystemCallFunction);
 
+///
+/// Hooks
+///
+
 NTSTATUS DetourNtCreateFile(
 	_Out_ PHANDLE FileHandle,
 	_In_ ACCESS_MASK DesiredAccess,
@@ -58,3 +69,17 @@ NTSTATUS DetourNtCreateFile(
 	_In_ ULONG CreateOptions,
 	_In_reads_bytes_opt_(EaLength) PVOID EaBuffer,
 	_In_ ULONG EaLength);
+
+NTSTATUS DetourNtWriteVirtualMemory(
+	_In_ HANDLE ProcessHandle,
+	_In_ PVOID BaseAddress,
+	_In_ PVOID Buffer,
+	_In_ ULONG NumberOfBytesToWrite,
+	_Out_opt_ PULONG NumberOfBytesWritten);
+
+///
+/// Utility Functions
+/// 
+
+ULONG64 GetFunctionOffset(
+	PUNICODE_STRING funcName);
