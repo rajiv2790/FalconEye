@@ -53,6 +53,14 @@ void __fastcall SyscallStub(
 	_In_ unsigned int SystemCallIndex, 
 	_Inout_ void** SystemCallFunction);
 
+NTSTATUS FEPerformObCallbackRegistration();
+
+OB_PREOP_CALLBACK_STATUS
+FEOpenProcessCallback(
+	_In_ PVOID RegistrationContext,
+	_Inout_ POB_PRE_OPERATION_INFORMATION PreInfo
+);
+
 ///
 /// Hooks
 ///
@@ -81,5 +89,5 @@ NTSTATUS DetourNtWriteVirtualMemory(
 /// Utility Functions
 /// 
 
-ULONG64 GetFunctionOffset(
+ULONG64 FEGetFunctionOffset(
 	PUNICODE_STRING funcName);

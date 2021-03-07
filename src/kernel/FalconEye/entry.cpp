@@ -20,6 +20,12 @@
 
 PVOID64 NtBase;
 
+BOOLEAN bFEObCallbackInstalled = FALSE;
+PVOID pCBRegistrationHandle = NULL;
+OB_CALLBACK_REGISTRATION  CBObRegistration = { 0 };
+OB_OPERATION_REGISTRATION CBOperationRegistrations[1] = { { 0 } };
+UNICODE_STRING CBAltitude = { 0 };
+
 static wchar_t IfhMagicFileName[] = L"ifh--";
 
 static UNICODE_STRING StringNtCreateFile = RTL_CONSTANT_STRING(L"NtCreateFile");
@@ -39,10 +45,21 @@ extern "C" NTSTATUS DriverEntry(
 {
 	UNREFERENCED_PARAMETER(RegistryPath);
 
+	NTSTATUS status;
+
+	// ObCallbacks are used to get a callback when a process creates/
+	// duplicates a handle to another process. Both "attacker" process, and
+	// "victim" process are stored in OpenProcessMap, if the attacker process
+	// 	opens the victim with certain permissions.
+
+	// Perform ObCallback Registration
+	
+	status = FEPerformObCallbackRegistration();
+
 	//
 	// Figure out when we built this last for debugging purposes.
 	//
-	kprintf("[+] infinityhook: Loaded.\n");
+	kprintf("[+] falconeye: Loaded.\n");
 
 	//
 	// Let the driver be unloaded gracefully. This also turns off 
@@ -56,7 +73,7 @@ extern "C" NTSTATUS DriverEntry(
 	OriginalNtCreateFile = (NtCreateFile_t)MmGetSystemRoutineAddress(&StringNtCreateFile);
 	if (!OriginalNtCreateFile)
 	{
-		kprintf("[-] infinityhook: Failed to locate export: %wZ.\n", StringNtCreateFile);
+		kprintf("[-] falconeye: Failed to locate export: %wZ.\n", StringNtCreateFile);
 		return STATUS_ENTRYPOINT_NOT_FOUND;
 	}
 
@@ -74,14 +91,19 @@ extern "C" NTSTATUS DriverEntry(
 	}
 	if (NtBase)
 	{
-		kprintf("[+] infinityhook: NtBase: %p.\n", NtBase);
+		kprintf("[+] falconeye: NtBase: %p.\n", NtBase);
 	}
 	// Find NtWriteVirtualMemoryOffset
-	ULONG64 NtWriteVirtualMemoryOffset = GetFunctionOffset(&StringNtWriteVirtualMemory);
+	ULONG64 NtWriteVirtualMemoryOffset = FEGetFunctionOffset(&StringNtWriteVirtualMemory);
 	OriginalNtWriteVirtualMemory = (NtWriteVirtualMemory_t)((ULONG64)NtBase + NtWriteVirtualMemoryOffset);
 	if (OriginalNtWriteVirtualMemory)
 	{
-		kprintf("[+] infinityhook: NtWriteVirtualMemory: %p.\n", OriginalNtWriteVirtualMemory);
+		kprintf("[+] falconeye: NtWriteVirtualMemory: %p.\n", OriginalNtWriteVirtualMemory);
+	}
+	if (!OriginalNtWriteVirtualMemory)
+	{
+		kprintf("[-] falconeye: Failed to locate export: %wZ.\n", StringNtWriteVirtualMemory);
+		//return STATUS_ENTRYPOINT_NOT_FOUND;
 	}
 	
 
@@ -107,11 +129,20 @@ void DriverUnload(
 	UNREFERENCED_PARAMETER(DriverObject);
 
 	//
+	// Unregister OpenProcess Callback
+	//
+	if (bFEObCallbackInstalled == TRUE) {
+		ObUnRegisterCallbacks(pCBRegistrationHandle);
+		pCBRegistrationHandle = NULL;
+		bFEObCallbackInstalled = FALSE;
+	}
+
+	//
 	// Unload infinity hook gracefully.
 	//
 	IfhRelease();
 
-	kprintf("\n[!] infinityhook: Unloading... BYE!\n");
+	kprintf("\n[!] falconeye: Unloading... BYE!\n");
 }
 
 /*
@@ -142,6 +173,14 @@ void __fastcall SyscallStub(
 		// NtCreateFile.
 		//
 		*SystemCallFunction = DetourNtCreateFile;
+	}
+	else if (*SystemCallFunction == OriginalNtWriteVirtualMemory)
+	{
+		//
+		// We can overwrite the return address on the stack to our detoured
+		// NtCreateFile.
+		//
+		*SystemCallFunction = DetourNtWriteVirtualMemory;
 	}
 }
 
@@ -205,10 +244,28 @@ NTSTATUS DetourNtCreateFile(
 }
 
 /*
+*	This function is invoked instead of nt!NtWriteVirtualMemory. 
+*	It will first check the OpenProcessMap for the source, destination
+*   pid pair. If present, it will log the pids and the address of buffer
+*   to <todo>.
+*/
+
+NTSTATUS DetourNtWriteVirtualMemory(
+	_In_ HANDLE ProcessHandle,
+	_In_ PVOID BaseAddress,
+	_In_ PVOID Buffer,
+	_In_ ULONG NumberOfBytesToWrite,
+	_Out_opt_ PULONG NumberOfBytesWritten)
+{
+	kprintf("[+] falconeye: NtWriteVirtualMemory BaseAddress: %p", BaseAddress);
+	return OriginalNtWriteVirtualMemory(ProcessHandle, BaseAddress, Buffer, NumberOfBytesToWrite, NumberOfBytesWritten);
+}
+
+/*
 * Function to get offset of a given function
 * This offset is either hardcoded or parsed from symbols
 */
-ULONG64 GetFunctionOffset(
+ULONG64 FEGetFunctionOffset(
 	PUNICODE_STRING funcName
 )
 {
@@ -218,4 +275,80 @@ ULONG64 GetFunctionOffset(
 		offset = 0x6de8d0;
 	}
 	return offset;
+}
+
+/*
+* Function to register obcallbacks to capture suspicious OpenProcess Events 
+*/
+NTSTATUS FEPerformObCallbackRegistration()
+{
+	CBOperationRegistrations[0].ObjectType = PsProcessType;
+	CBOperationRegistrations[0].Operations |= OB_OPERATION_HANDLE_CREATE;
+	CBOperationRegistrations[0].Operations |= OB_OPERATION_HANDLE_DUPLICATE;
+	CBOperationRegistrations[0].PreOperation = FEOpenProcessCallback;
+	//CBOperationRegistrations[0].PostOperation = CBTdPostOperationCallback;
+	CBOperationRegistrations[0].PostOperation = NULL;
+
+	RtlInitUnicodeString(&CBAltitude, L"1337");
+
+	CBObRegistration.Version = OB_FLT_REGISTRATION_VERSION;
+	CBObRegistration.OperationRegistrationCount = 1;
+	CBObRegistration.Altitude = CBAltitude;
+	CBObRegistration.RegistrationContext = NULL;
+	CBObRegistration.OperationRegistration = CBOperationRegistrations;
+
+	NTSTATUS status = ObRegisterCallbacks(
+		&CBObRegistration,
+		&pCBRegistrationHandle       // save the registration handle to remove callbacks later
+	);
+
+	bFEObCallbackInstalled = TRUE;
+	if (!NT_SUCCESS(status))
+	{
+		kprintf("[+] falconeye: installing OB callbacks failed  status 0x%x\n", status);
+		bFEObCallbackInstalled = FALSE;
+	}
+	return status;
+}
+
+/*
+* Callback function that gets called on OpenProcess Events
+* Populates OpenProcessMap
+*/
+OB_PREOP_CALLBACK_STATUS
+FEOpenProcessCallback(
+	_In_ PVOID RegistrationContext,
+	_Inout_ POB_PRE_OPERATION_INFORMATION PreInfo
+)
+{
+	UNREFERENCED_PARAMETER(RegistrationContext);
+	UNREFERENCED_PARAMETER(PreInfo);
+	HANDLE curPID, openedPID;
+	//ACCESS_MASK suspiciousMask;
+	//NTSTATUS status;
+
+	if (PreInfo->ObjectType == *PsProcessType)
+	{
+		curPID = PsGetCurrentProcessId();
+		PEPROCESS OpenedProcess = (PEPROCESS)PreInfo->Object;
+		openedPID = PsGetProcessId(OpenedProcess);
+
+		//If a process is opening another process and the source process is not SYSTEM
+		if (curPID != openedPID && (UINT_PTR)curPID != 4)
+		{
+			//Not a kernel operation
+			if (PreInfo->KernelHandle != 1)
+			{
+				//If PROCESS_VM_WRITE Access is requested
+				if ((PreInfo->Parameters->CreateHandleInformation.OriginalDesiredAccess & 0x0020) == 0x0020)
+				{
+					kprintf("[+] falconeye: Suspicious process %llu is trying to open process %llu with write permissions.\n",
+						(ULONG64)curPID,
+						(ULONG64)openedPID);
+				}
+			}
+
+		}
+	}
+	return OB_PREOP_SUCCESS;
 }
