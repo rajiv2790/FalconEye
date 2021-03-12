@@ -20,6 +20,8 @@
 
 PVOID64 NtBase;
 
+RTL_GENERIC_TABLE OpenProcessTable;
+
 BOOLEAN bFEObCallbackInstalled = FALSE;
 PVOID pCBRegistrationHandle = NULL;
 OB_CALLBACK_REGISTRATION  CBObRegistration = { 0 };
@@ -34,6 +36,8 @@ static NtCreateFile_t OriginalNtCreateFile = NULL;
 static UNICODE_STRING StringNtWriteVirtualMemory = RTL_CONSTANT_STRING(L"NtWriteVirtualMemory");
 static NtWriteVirtualMemory_t OriginalNtWriteVirtualMemory = NULL;
 
+static FEOPTLOCK FeOptLock;
+
 /*
 *	The entry point of the driver. Initializes infinity hook and
 *	sets up the driver's unload routine so that it can be gracefully 
@@ -47,13 +51,18 @@ extern "C" NTSTATUS DriverEntry(
 
 	NTSTATUS status;
 
+	//Initialize lock for dealing with OpenProcessTable
+	RtlZeroMemory(&FeOptLock, sizeof(FeOptLock));
+	KeInitializeSpinLock(&FeOptLock.lock);
+	// Initialize OpenProcessTable
+	RtlInitializeGenericTable(&OpenProcessTable, OpenProcessNodeCompare, OpenProcessNodeAllocate, OpenProcessNodeFree, NULL);
+
 	// ObCallbacks are used to get a callback when a process creates/
 	// duplicates a handle to another process. Both "attacker" process, and
-	// "victim" process are stored in OpenProcessMap, if the attacker process
+	// "victim" process are stored in OpenProcessTable, if the attacker process
 	// 	opens the victim with certain permissions.
 
 	// Perform ObCallback Registration
-	
 	status = FEPerformObCallbackRegistration();
 
 	//
@@ -137,6 +146,32 @@ void DriverUnload(
 		bFEObCallbackInstalled = FALSE;
 	}
 
+	//
+	// Cleanup OpenProcessTable
+	//
+	PVOID node;
+	POpenProcessNode tempNode;
+	/*
+	for (node = RtlEnumerateGenericTable(&OpenProcessTable, TRUE);
+		node != NULL;
+		node = RtlEnumerateGenericTable(&OpenProcessTable, TRUE))
+	{
+		OpenProcessNode tempNode = *(POpenProcessNode)node;
+		RtlDeleteElementGenericTable(&OpenProcessTable, &tempNode);
+	}
+	*/
+	KIRQL oldIrql;
+	KeAcquireSpinLock(&FeOptLock.lock, &oldIrql);
+	while (!RtlIsGenericTableEmpty(&OpenProcessTable)) {
+		node = RtlGetElementGenericTable(&OpenProcessTable, 0);
+		tempNode = (POpenProcessNode)node;
+		ULONG64 aPID = (ULONG64)tempNode->aPID;
+		ULONG64 vPID = (ULONG64)tempNode->vPID;
+		RtlDeleteElementGenericTable(&OpenProcessTable, node);
+		tempNode = NULL;
+		kprintf("[+] falconeye: Deleting element: aPID= %llu vPID= %llu\n", aPID, vPID);
+	}
+	KeReleaseSpinLock(&FeOptLock.lock, oldIrql);
 	//
 	// Unload infinity hook gracefully.
 	//
@@ -245,7 +280,7 @@ NTSTATUS DetourNtCreateFile(
 
 /*
 *	This function is invoked instead of nt!NtWriteVirtualMemory. 
-*	It will first check the OpenProcessMap for the source, destination
+*	It will first check the OpenProcessTable for the source, destination
 *   pid pair. If present, it will log the pids and the address of buffer
 *   to <todo>.
 */
@@ -257,7 +292,28 @@ NTSTATUS DetourNtWriteVirtualMemory(
 	_In_ ULONG NumberOfBytesToWrite,
 	_Out_opt_ PULONG NumberOfBytesWritten)
 {
-	kprintf("[+] falconeye: NtWriteVirtualMemory BaseAddress: %p", BaseAddress);
+	// Get PID from the process handle
+	PEPROCESS eprocessPtr;
+	PVOID pObject;
+	HANDLE aPID, vPID;
+
+	
+	NTSTATUS status = ObReferenceObjectByHandle(ProcessHandle, GENERIC_READ, *PsProcessType, KernelMode, &pObject, NULL);
+	if (!NT_SUCCESS(status))
+	{
+		kprintf("[+] falconeye: ObReferenceObjectByHandle failed  status 0x%x\n", status);
+	}
+	
+	eprocessPtr = (PEPROCESS)pObject;
+	vPID = PsGetProcessId(eprocessPtr);
+	aPID = PsGetCurrentProcessId();
+	
+	// If a process is writing to a different process
+	if ((ULONG64)aPID != (ULONG64)vPID)
+	{
+		kprintf("[+] falconeye: NtWriteVirtualMemory AttackerPID: %llu VictimPID: %llu BaseAddress: %p", aPID, vPID, BaseAddress);
+	}
+	
 	return OriginalNtWriteVirtualMemory(ProcessHandle, BaseAddress, Buffer, NumberOfBytesToWrite, NumberOfBytesWritten);
 }
 
@@ -313,7 +369,7 @@ NTSTATUS FEPerformObCallbackRegistration()
 
 /*
 * Callback function that gets called on OpenProcess Events
-* Populates OpenProcessMap
+* Populates OpenProcessTable
 */
 OB_PREOP_CALLBACK_STATUS
 FEOpenProcessCallback(
@@ -322,7 +378,7 @@ FEOpenProcessCallback(
 )
 {
 	UNREFERENCED_PARAMETER(RegistrationContext);
-	UNREFERENCED_PARAMETER(PreInfo);
+	//UNREFERENCED_PARAMETER(PreInfo);
 	HANDLE curPID, openedPID;
 	//ACCESS_MASK suspiciousMask;
 	//NTSTATUS status;
@@ -342,6 +398,18 @@ FEOpenProcessCallback(
 				//If PROCESS_VM_WRITE Access is requested
 				if ((PreInfo->Parameters->CreateHandleInformation.OriginalDesiredAccess & 0x0020) == 0x0020)
 				{
+					// Add "attacker" and "victim" PID to OpenProcessTable
+					OpenProcessNode node = { curPID, openedPID };
+					BOOLEAN newElement = FALSE;
+					PVOID pFoundEntry = 0;
+					KIRQL oldIrql;
+					KeAcquireSpinLock(&FeOptLock.lock, &oldIrql);
+					pFoundEntry = RtlInsertElementGenericTable(&OpenProcessTable, &node, sizeof(OpenProcessNode), &newElement);
+					if (!pFoundEntry)
+					{
+						kprintf("[+] falconeye: Unable to insert into OpenProcessTable\n");
+					}
+					KeReleaseSpinLock(&FeOptLock.lock, oldIrql);
 					kprintf("[+] falconeye: Suspicious process %llu is trying to open process %llu with write permissions.\n",
 						(ULONG64)curPID,
 						(ULONG64)openedPID);
@@ -351,4 +419,65 @@ FEOpenProcessCallback(
 		}
 	}
 	return OB_PREOP_SUCCESS;
+}
+
+/*
+* This function is a callback for generic compare routine for OpenProcessTable
+*/
+RTL_GENERIC_COMPARE_RESULTS OpenProcessNodeCompare(
+	_In_ PRTL_GENERIC_TABLE Table,
+	_In_ PVOID Lhs,
+	_In_ PVOID Rhs
+)
+{
+	UNREFERENCED_PARAMETER(Table);
+
+	OpenProcessNode* lhs = (OpenProcessNode*)Lhs;
+	OpenProcessNode* rhs = (OpenProcessNode*)Rhs;
+	if ((ULONG64)&lhs->aPID < (ULONG64)&rhs->aPID)
+	{
+		return GenericLessThan;
+	}
+	else if ((ULONG64)&lhs->aPID > (ULONG64)&rhs->aPID)
+	{
+		return GenericGreaterThan;
+	}
+	else
+	{
+		if ((ULONG64)&lhs->vPID < (ULONG64)&rhs->vPID)
+		{
+			return GenericLessThan;
+		}
+		else if ((ULONG64)&lhs->vPID > (ULONG64)&rhs->vPID)
+		{
+			return GenericGreaterThan;
+		}
+		return GenericEqual;
+	}
+}
+
+/*
+* This function is a callback for generic allocate routine for OpenProcessTable
+*/
+PVOID OpenProcessNodeAllocate(
+	_In_ PRTL_GENERIC_TABLE Table,
+	_In_ CLONG ByteSize
+)
+{
+	UNREFERENCED_PARAMETER(Table);
+
+	return ExAllocatePoolWithTag(PagedPool, ByteSize, FE_TABLE_ENTRY_TAG);
+}
+
+/*
+* This function is a callback for generic free routine for OpenProcessTable
+*/
+VOID OpenProcessNodeFree(
+	_In_ PRTL_GENERIC_TABLE Table,
+	_In_ __drv_freesMem(Mem) _Post_invalid_ PVOID Entry
+)
+{
+	UNREFERENCED_PARAMETER(Table);
+
+	ExFreePoolWithTag(Entry, FE_TABLE_ENTRY_TAG);
 }
