@@ -181,11 +181,16 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="entry.cpp" />
+    <ClCompile Include="FloatingCodeDetect.cpp" />
     <ClCompile Include="stdafx.cpp" />
+    <ClCompile Include="Syscalls.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="entry.h" />
+    <ClInclude Include="FloatingCodeDetect.h" />
+    <ClInclude Include="NtDefs.h" />
     <ClInclude Include="stdafx.h" />
+    <ClInclude Include="Syscalls.h" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\libinfinityhook\libinfinityhook.vcxproj">

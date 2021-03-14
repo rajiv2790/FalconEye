@@ -17,13 +17,18 @@
 #include "stdafx.h"
 #include "entry.h"
 #include "..\libinfinityhook\infinityhook.h"
+#include "Syscalls.h"
+#include "FloatingCodeDetect.h"
 
 static wchar_t IfhMagicFileName[] = L"ifh--";
 
 static UNICODE_STRING StringNtCreateFile = RTL_CONSTANT_STRING(L"NtCreateFile");
+static UNICODE_STRING StringNtNtWriteVirtualMemory = RTL_CONSTANT_STRING(L"NtWriteVirtualMemory");
 
 static NtCreateFile_t OriginalNtCreateFile = NULL;
+static NtWriteVirtualMemory_t OriginalNtNtWriteVirtualMemory = NULL;
 
+BOOLEAN g_DbgPrintSyscall = FALSE;
 /*
 *	The entry point of the driver. Initializes infinity hook and
 *	sets up the driver's unload routine so that it can be gracefully 
@@ -35,31 +40,27 @@ extern "C" NTSTATUS DriverEntry(
 {
 	UNREFERENCED_PARAMETER(RegistryPath);
 
-	//
 	// Figure out when we built this last for debugging purposes.
-	//
 	kprintf("[+] infinityhook: Loaded.\n");
 	
-	//
 	// Let the driver be unloaded gracefully. This also turns off 
 	// infinity hook.
-	//
 	DriverObject->DriverUnload = DriverUnload;
 
-	//
-	// Demo detouring of nt!NtCreateFile.
-	//
 	OriginalNtCreateFile = (NtCreateFile_t)MmGetSystemRoutineAddress(&StringNtCreateFile);
 	if (!OriginalNtCreateFile)
 	{
 		kprintf("[-] infinityhook: Failed to locate export: %wZ.\n", StringNtCreateFile);
 		return STATUS_ENTRYPOINT_NOT_FOUND;
 	}
+	OriginalNtNtWriteVirtualMemory = (NtWriteVirtualMemory_t)MmGetSystemRoutineAddress(&StringNtNtWriteVirtualMemory);
 
-	//
+	TestMemImageByAddress();
+	FindNtBase(OriginalNtCreateFile);
+	GetSyscallAddresses();
+
 	// Initialize infinity hook. Each system call will be redirected
 	// to our syscall stub.
-	//
 	NTSTATUS Status = IfhInitialize(SyscallStub);
 	if (!NT_SUCCESS(Status))
 	{
@@ -77,9 +78,7 @@ void DriverUnload(
 {
 	UNREFERENCED_PARAMETER(DriverObject);
 
-	//
 	// Unload infinity hook gracefully.
-	//
 	IfhRelease();
 
 	kprintf("\n[!] infinityhook: Unloading... BYE!\n");
@@ -92,27 +91,13 @@ void __fastcall SyscallStub(
 	_In_ unsigned int SystemCallIndex, 
 	_Inout_ void** SystemCallFunction)
 {
-	// 
-	// Enabling this message gives you VERY verbose logging... and slows
-	// down the system. Use it only for debugging.
-	//
-	
-#if 0
-	kprintf("[+] infinityhook: SYSCALL %lu: 0x%p [stack: 0x%p].\n", SystemCallIndex, *SystemCallFunction, SystemCallFunction);
-#endif
+	if (g_DbgPrintSyscall) {
+		kprintf("[+] infinityhook: SYSCALL %lu: 0x%p [stack: 0x%p].\n", SystemCallIndex, *SystemCallFunction, SystemCallFunction);
+	}
 
-	UNREFERENCED_PARAMETER(SystemCallIndex);
-
-	//
-	// In our demo, we care only about nt!NtCreateFile calls.
-	//
-	if (*SystemCallFunction == OriginalNtCreateFile)
-	{
-		//
-		// We can overwrite the return address on the stack to our detoured
-		// NtCreateFile.
-		//
-		*SystemCallFunction = DetourNtCreateFile;
+	void** DetourAddress = (void **)UpdateSystemCallFunction(*SystemCallFunction);
+	if (DetourAddress) {
+		*SystemCallFunction = DetourAddress;
 	}
 }
 
@@ -133,35 +118,24 @@ NTSTATUS DetourNtCreateFile(
 	_In_reads_bytes_opt_(EaLength) PVOID EaBuffer,
 	_In_ ULONG EaLength)
 {
-	//
 	// We're going to filter for our "magic" file name.
-	//
 	if (ObjectAttributes &&
 		ObjectAttributes->ObjectName && 
 		ObjectAttributes->ObjectName->Buffer)
 	{
-		//
 		// Unicode strings aren't guaranteed to be NULL terminated so
 		// we allocate a copy that is.
-		//
 		PWCHAR ObjectName = (PWCHAR)ExAllocatePool(NonPagedPool, ObjectAttributes->ObjectName->Length + sizeof(wchar_t));
 		if (ObjectName)
 		{
 			memset(ObjectName, 0, ObjectAttributes->ObjectName->Length + sizeof(wchar_t));
 			memcpy(ObjectName, ObjectAttributes->ObjectName->Buffer, ObjectAttributes->ObjectName->Length);
 		
-			//
 			// Does it contain our special file name?
-			//
 			if (wcsstr(ObjectName, IfhMagicFileName))
 			{
 				kprintf("[+] infinityhook: Denying access to file: %wZ.\n", ObjectAttributes->ObjectName);
-
 				ExFreePool(ObjectName);
-
-				//
-				// The demo denies access to said file.
-				//
 				return STATUS_ACCESS_DENIED;
 			}
 
@@ -169,8 +143,5 @@ NTSTATUS DetourNtCreateFile(
 		}
 	}
 
-	//
-	// We're uninterested, call the original.
-	//
 	return OriginalNtCreateFile(FileHandle, DesiredAccess, ObjectAttributes, IoStatusBlock, AllocationSize, FileAttributes, ShareAccess, CreateDisposition, CreateOptions, EaBuffer, EaLength);
 }
