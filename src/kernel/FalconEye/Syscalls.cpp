@@ -9,7 +9,7 @@
 PVOID64 NtBaseAddress = NULL;
 // offsets
 #define NtAddAtomEx_Offset              0x6cf2f0
-#define NtWriteVirtualMemory_Offset     0x6de8d0
+#define NtWriteVirtualMemory_Offset     0x6d5d00 //0x6de8d0
 #define NtSuspendThread_Offset          0x6e4370
 #define NtMapViewOfSection_Offset       0x608190
 #define NtUnmapViewOfSection_Offset     0x64c2f0
@@ -138,11 +138,10 @@ NTSTATUS DetourNtWriteVirtualMemory(
     //kprintf("FalconEye: DetourNtWriteVirtualMemory: Handle %p Buffer %p.\n", ProcessHandle, Buffer);
     
     // write into current process; skip
-    HANDLE TargetHandle = PsGetProcessId(PsGetCurrentProcess());
-    if (ProcessHandle != TargetHandle) {
-        ULONG callerPid = ULONG((LONGLONG)TargetHandle & 0xffffffff);
-        ULONG targetPid = GetProcessIdByHandle(ProcessHandle);
-
+    HANDLE CurrentPsHandle = PsGetProcessId(PsGetCurrentProcess());
+    ULONG callerPid = ULONG((LONGLONG)CurrentPsHandle & 0xffffffff);
+    ULONG targetPid = GetProcessIdByHandle(ProcessHandle);
+    if (callerPid != targetPid) {
         TestMemImageByAddress(Buffer);
         AddNtWriteVirtualMemoryEntry(callerPid, targetPid, BaseAddress, Buffer, NumberOfBytesToWrite);
     }

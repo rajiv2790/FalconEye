@@ -14,7 +14,9 @@ ULONG GetProcessIdByHandle(HANDLE process)
         NULL);
     if (STATUS_SUCCESS == status && NULL != pProc) {
         HANDLE proc = PsGetProcessId(pProc);
+        ObDereferenceObject(pProc);
         return (ULONG)((LONGLONG)proc & 0xffffffff);
     }
+    ObDereferenceObject(pProc);
     return 0;
 }
