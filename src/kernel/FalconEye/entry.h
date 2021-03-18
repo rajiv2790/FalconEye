@@ -16,6 +16,8 @@
 
 #pragma once
 
+#define FE_TABLE_ENTRY_TAG                   'eFeA'
+
 ///
 /// Structures and typedefs.
 ///
@@ -40,6 +42,16 @@ typedef NTSTATUS(*NtWriteVirtualMemory_t)(
 	_In_ ULONG NumberOfBytesToWrite,
 	_Out_opt_ PULONG NumberOfBytesWritten);
 
+typedef struct _OpenProcessNode {
+	HANDLE aPID;
+	HANDLE vPID;
+} OpenProcessNode, *POpenProcessNode;
+
+// OPT == OpenProcessTable
+typedef struct _FE_OPT_LOCK {
+	KSPIN_LOCK lock;
+} FEOPTLOCK, *PFEOPTLOCK;
+
 ///
 /// Forward declarations.
 ///
@@ -59,6 +71,22 @@ OB_PREOP_CALLBACK_STATUS
 FEOpenProcessCallback(
 	_In_ PVOID RegistrationContext,
 	_Inout_ POB_PRE_OPERATION_INFORMATION PreInfo
+);
+
+RTL_GENERIC_COMPARE_RESULTS OpenProcessNodeCompare(
+	_In_ PRTL_GENERIC_TABLE Table,
+	_In_ PVOID Lhs,
+	_In_ PVOID Rhs
+);
+
+PVOID OpenProcessNodeAllocate(
+	_In_ PRTL_GENERIC_TABLE Table,
+	_In_ CLONG ByteSize
+);
+
+VOID OpenProcessNodeFree(
+	_In_ PRTL_GENERIC_TABLE Table,
+	_In_ __drv_freesMem(Mem) _Post_invalid_ PVOID Entry
 );
 
 ///
