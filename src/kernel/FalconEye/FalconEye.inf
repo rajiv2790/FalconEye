@@ -10,7 +10,7 @@ Signature   = "$Windows NT$"
 Class = System
 ClassGuid = {4d36e97d-e325-11ce-bfc1-08002be10318}
 Provider    = %ManufacturerName%
-DriverVer   = 
+DriverVer   = 0.1
 CatalogFile = FalconEye.cat
 
 [DestinationDirs]
@@ -51,8 +51,7 @@ ServiceType      = 2                            ;SERVICE_FILE_SYSTEM_DRIVER
 StartType        = 3                            ;SERVICE_DEMAND_START
 ErrorControl     = 1                            ;SERVICE_ERROR_NORMAL
 ; TODO - Change the Load Order Group value
-; LoadOrderGroup = "FSFilter Activity Monitor"
-LoadOrderGroup = "_TODO_Change_LoadOrderGroup_appropriately_"
+LoadOrderGroup = "FSFilter Activity Monitor"
 AddReg           = MiniFilter.AddRegistry
 
 ;
@@ -95,5 +94,5 @@ DiskId1                 = "FalconEye Device Installation Disk"
 DefaultInstance         = "FalconEye Instance"
 Instance1.Name          = "FalconEye Instance"
 ; TODO - Change the altitude value, see https://msdn.microsoft.com/en-us/windows/hardware/drivers/ifs/load-order-groups-and-altitudes-for-minifilter-drivers
-Instance1.Altitude       = "_TODO_Change_Altitude_appropriately_"
+Instance1.Altitude       = 404910
 Instance1.Flags         = 0x0              ; Allow all attachments
