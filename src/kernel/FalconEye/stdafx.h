@@ -15,6 +15,13 @@
 
 #pragma once
 
+// This ensures all the generic table methods use AVL trees instead of splay trees
+#define RTL_USE_AVL_TABLES 0
+
+///
+/// Includes.
+///
+
 #pragma warning(push, 0)
 #include <ntifs.h>
 #include <ntdef.h>

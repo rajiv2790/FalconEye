@@ -28,13 +28,8 @@ PVOID64 kernel32wow64Base;
 
 RTL_GENERIC_TABLE OpenProcessTable;
 
-BOOLEAN bFEObCallbackInstalled = FALSE;
 BOOLEAN bFELoadImageCallbackInstalled = FALSE;
-PVOID pCBRegistrationHandle = NULL;
 PVOID pKernel32 = NULL;
-OB_CALLBACK_REGISTRATION  CBObRegistration = { 0 };
-OB_OPERATION_REGISTRATION CBOperationRegistrations[1] = { { 0 } };
-UNICODE_STRING CBAltitude = { 0 };
 
 static wchar_t IfhMagicFileName[] = L"ifh--";
 
@@ -45,6 +40,9 @@ static UNICODE_STRING OpenProcessFilter[NUM_FILTERED_PROCESS] = {	RTL_CONSTANT_S
 
 static UNICODE_STRING StringNtCreateFile = RTL_CONSTANT_STRING(L"NtCreateFile");
 static NtCreateFile_t OriginalNtCreateFile = NULL;
+
+static FEOPTLOCK FeOptLock;
+
 
 BOOLEAN g_DbgPrintSyscall = FALSE;
 /*
@@ -162,128 +160,19 @@ void DriverUnload(
 *	For each usermode syscall, this stub will be invoked.
 */
 void __fastcall SyscallStub(
-	_In_ unsigned int SystemCallIndex, 
+	_In_ unsigned int SystemCallIndex,
 	_Inout_ void** SystemCallFunction)
 {
 	if (g_DbgPrintSyscall) {
 		kprintf("[+] FalconEye: SYSCALL %lu: 0x%p [stack: 0x%p].\n", SystemCallIndex, *SystemCallFunction, SystemCallFunction);
 	}
-	
+
 	SaveOriginalFunctionAddress(SystemCallIndex, SystemCallFunction);
-	eprocessPtr = (PEPROCESS)pObject;
-	vPID = PsGetProcessId(eprocessPtr);
-	aPID = PsGetCurrentProcessId();
-	
-	// If a process is writing to a different process
-	if ((ULONG64)aPID != (ULONG64)vPID)
-	{
-		// If the aPID, vPID pair is present in OpenProcessTable
-		OpenProcessNode node = { aPID, vPID };
-		PVOID pFoundEntry = 0;
-		KIRQL oldIrql;
-		KeAcquireSpinLock(&FeOptLock.lock, &oldIrql);
-		pFoundEntry = RtlLookupElementGenericTable(&OpenProcessTable, &node);
-		KeReleaseSpinLock(&FeOptLock.lock, oldIrql);
-		if (pFoundEntry)
-		{
-			kprintf("[+] falconeye: NtWriteVirtualMemory AttackerPID: %llu VictimPID: %llu BaseAddress: %p", aPID, vPID, BaseAddress);
-		}
-	}
-	
-	return OriginalNtWriteVirtualMemory(ProcessHandle, BaseAddress, Buffer, NumberOfBytesToWrite, NumberOfBytesWritten);
-}
 
-/*
-* Function to get offset of a given function
-* This offset is either hardcoded or parsed from symbols
-*/
-ULONG64 FEGetFunctionOffset(
-	PUNICODE_STRING funcName
-)
-{
-	ULONG64 offset = 0;
-	if(RtlEqualUnicodeString(funcName, &StringNtWriteVirtualMemory, TRUE))
-	{
-		offset = 0x6de8d0;
-	}
-	return offset;
-}
-
-/*
-* Function to register obcallbacks to capture suspicious OpenProcess Events 
-*/
-NTSTATUS FEPerformObCallbackRegistration()
-{
-	CBOperationRegistrations[0].ObjectType = PsProcessType;
-	CBOperationRegistrations[0].Operations |= OB_OPERATION_HANDLE_CREATE;
-	CBOperationRegistrations[0].Operations |= OB_OPERATION_HANDLE_DUPLICATE;
-	CBOperationRegistrations[0].PreOperation = FEOpenProcessCallback;
-	//CBOperationRegistrations[0].PostOperation = CBTdPostOperationCallback;
-	CBOperationRegistrations[0].PostOperation = NULL;
-
-	void** DetourAddress = (void **)GetDetourFunction(*SystemCallFunction);
+	void** DetourAddress = (void**)GetDetourFunction(*SystemCallFunction);
 	if (DetourAddress) {
 		*SystemCallFunction = DetourAddress;
 	}
-	return status;
-}
-
-/*
-* Callback function that gets called on OpenProcess Events
-* Populates OpenProcessTable
-*/
-OB_PREOP_CALLBACK_STATUS
-FEOpenProcessCallback(
-	_In_ PVOID RegistrationContext,
-	_Inout_ POB_PRE_OPERATION_INFORMATION PreInfo
-)
-{
-	UNREFERENCED_PARAMETER(RegistrationContext);
-	//UNREFERENCED_PARAMETER(PreInfo);
-	HANDLE curPID, openedPID;
-	//ACCESS_MASK suspiciousMask;
-	//NTSTATUS status;
-
-	if (PreInfo->ObjectType == *PsProcessType)
-	{
-		curPID = PsGetCurrentProcessId();
-		PEPROCESS OpenedProcess = (PEPROCESS)PreInfo->Object;
-		openedPID = PsGetProcessId(OpenedProcess);
-
-		//If a process is opening another process and the source process is not SYSTEM
-		if (curPID != openedPID && (UINT_PTR)curPID != 4)
-		{
-			//Not a kernel operation
-			if (PreInfo->KernelHandle != 1)
-			{
-				//If PROCESS_VM_WRITE Access is requested
-				if ((PreInfo->Parameters->CreateHandleInformation.OriginalDesiredAccess & 0x0020) == 0x0020)
-				{
-					//Check if the "attacker" process needs to be filtered
-					if (!isProcessFiltered())
-					{
-						// Add "attacker" and "victim" PID to OpenProcessTable
-						OpenProcessNode node = { curPID, openedPID };
-						BOOLEAN newElement = FALSE;
-						PVOID pFoundEntry = 0;
-						KIRQL oldIrql;
-						KeAcquireSpinLock(&FeOptLock.lock, &oldIrql);
-						pFoundEntry = RtlInsertElementGenericTable(&OpenProcessTable, &node, sizeof(OpenProcessNode), &newElement);
-						if (!pFoundEntry)
-						{
-							kprintf("[+] falconeye: Unable to insert into OpenProcessTable\n");
-						}
-						KeReleaseSpinLock(&FeOptLock.lock, oldIrql);
-						kprintf("[+] falconeye: Suspicious process %llu is trying to open process %llu with write permissions.\n",
-							(ULONG64)curPID,
-							(ULONG64)openedPID);
-					}
-				}
-			}
-
-		}
-	}
-	return OB_PREOP_SUCCESS;
 }
 
 /*

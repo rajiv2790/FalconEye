@@ -36,6 +36,18 @@ typedef NTSTATUS(*NtCreateFile_t)(
 	_In_reads_bytes_opt_(EaLength) PVOID EaBuffer,
 	_In_ ULONG EaLength);
 
+typedef NTSTATUS(*NtWriteVirtualMemory_t)(
+	_In_ HANDLE ProcessHandle,
+	_In_ PVOID BaseAddress,
+	_In_ PVOID Buffer,
+	_In_ ULONG NumberOfBytesToWrite,
+	_Out_opt_ PULONG NumberOfBytesWritten);
+
+typedef struct _OpenProcessNode {
+	HANDLE aPID;
+	HANDLE vPID;
+} OpenProcessNode, * POpenProcessNode;
+
 // OPT == OpenProcessTable
 typedef struct _FE_OPT_LOCK {
 	KSPIN_LOCK lock;
