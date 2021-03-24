@@ -9,7 +9,8 @@
 PVOID64 NtBaseAddress = NULL;
 // offsets
 #define NtAddAtomEx_Offset              0x6cf2f0
-#define NtWriteVirtualMemory_Offset     0x6d5d00 //0x6de8d0
+#define NtWriteVirtualMemory_Offset     0x6de8d0 
+//#define NtWriteVirtualMemory_Offset     0x6d5d00 
 #define NtSuspendThread_Offset          0x6e4370
 #define NtMapViewOfSection_Offset       0x608190
 #define NtUnmapViewOfSection_Offset     0x64c2f0
@@ -286,14 +287,16 @@ void SaveOriginalFunctionAddress(
     unsigned int SystemCallIndex,
     void** SystemCallFunction)
 {
+    UNREFERENCED_PARAMETER(SystemCallIndex);
+    UNREFERENCED_PARAMETER(SystemCallFunction);
 
+#if 0
     if (0x104C == SystemCallIndex) {
         kprintf("[+] FalconEye: NtUserSetProp %lu: 0x%p [stack: 0x%p].\n", SystemCallIndex, *SystemCallFunction, SystemCallFunction);
         if (NULL == NtUserSetPropOrigPtr) {
             NtUserSetPropOrigPtr = (NtUserSetProp_t)*SystemCallFunction;
         }
     }
-#if 0
     if (0x1089 == SystemCallIndex) {
         kprintf("[+] FalconEye: NtUserSetWindowsHookEx %lu: 0x%p [stack: 0x%p].\n", SystemCallIndex, *SystemCallFunction, SystemCallFunction);
         if (NULL == NtUserSetWindowsHookExOrigPtr) {
@@ -342,7 +345,7 @@ PVOID GetDetourFunction(PVOID OrigSyscall)
     else if (OrigSyscall == NtAddAtomExOrigPtr) {
         return DetourNtAddAtomEx;
     }
-#endif
+
     else if (OrigSyscall == NtSuspendThreadOrigPtr) {
         return DetourNtSuspendThread;
     }
@@ -384,6 +387,6 @@ PVOID GetDetourFunction(PVOID OrigSyscall)
         return DetourNtUserSetProp;
     }
     */
-
+#endif
     return NULL;
 }

@@ -26,8 +26,6 @@ PVOID64 NtBase;
 PVOID64 kernel32Base;
 PVOID64 kernel32wow64Base;
 
-RTL_GENERIC_TABLE OpenProcessTable;
-
 BOOLEAN bFELoadImageCallbackInstalled = FALSE;
 PVOID pKernel32 = NULL;
 
@@ -41,8 +39,8 @@ static UNICODE_STRING OpenProcessFilter[NUM_FILTERED_PROCESS] = {	RTL_CONSTANT_S
 static UNICODE_STRING StringNtCreateFile = RTL_CONSTANT_STRING(L"NtCreateFile");
 static NtCreateFile_t OriginalNtCreateFile = NULL;
 
-static FEOPTLOCK FeOptLock;
-
+RTL_GENERIC_TABLE OpenProcessTable;
+FEOPTLOCK FeOptLock;
 
 BOOLEAN g_DbgPrintSyscall = FALSE;
 /*
@@ -59,6 +57,12 @@ extern "C" NTSTATUS DriverEntry(
 	NTSTATUS status;
 
 	kprintf("[+] falconeye: Loaded.\n");
+
+	//Initialize lock for dealing with OpenProcessTable
+	RtlZeroMemory(&FeOptLock, sizeof(FeOptLock));
+	KeInitializeSpinLock(&FeOptLock.lock);
+	// Initialize OpenProcessTable
+	RtlInitializeGenericTable(&OpenProcessTable, OpenProcessNodeCompare, OpenProcessNodeAllocate, OpenProcessNodeFree, NULL);
 
 	// ObCallbacks are used to get a callback when a process creates/
 	// duplicates a handle to another process. Both "attacker" process, and

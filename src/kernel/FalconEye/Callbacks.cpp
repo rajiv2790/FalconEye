@@ -82,9 +82,25 @@ FEOpenProcessCallback(
 				//If PROCESS_VM_WRITE Access is requested
 				if ((PreInfo->Parameters->CreateHandleInformation.OriginalDesiredAccess & 0x0020) == 0x0020)
 				{
-					kprintf("[+] falconeye: Suspicious process %llu is trying to open process %llu with write permissions.\n",
-						(ULONG64)curPID,
-						(ULONG64)openedPID);
+					//Check if the "attacker" process needs to be filtered
+					if (!isProcessFiltered())
+					{
+						// Add "attacker" and "victim" PID to OpenProcessTable
+						OpenProcessNode node = { curPID, openedPID };
+						BOOLEAN newElement = FALSE;
+						PVOID pFoundEntry = 0;
+						KIRQL oldIrql;
+						KeAcquireSpinLock(&FeOptLock.lock, &oldIrql);
+						pFoundEntry = RtlInsertElementGenericTable(&OpenProcessTable, &node, sizeof(OpenProcessNode), &newElement);
+						if (!pFoundEntry)
+						{
+							kprintf("[+] falconeye: Unable to insert into OpenProcessTable\n");
+						}
+						KeReleaseSpinLock(&FeOptLock.lock, oldIrql);
+						kprintf("[+] falconeye: Suspicious process %llu is trying to open process %llu with write permissions.\n",
+							(ULONG64)curPID,
+							(ULONG64)openedPID);
+					}
 				}
 			}
 

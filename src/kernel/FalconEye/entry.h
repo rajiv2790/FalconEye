@@ -53,6 +53,7 @@ typedef struct _FE_OPT_LOCK {
 	KSPIN_LOCK lock;
 } FEOPTLOCK, *PFEOPTLOCK;
 
+
 ///
 /// Forward declarations.
 ///
@@ -145,3 +146,9 @@ extern "C" NTSTATUS ZwQueryInformationProcess(
 	_In_      ULONG            ProcessInformationLength,
 	_Out_opt_ PULONG           ReturnLength
 );
+
+///
+/// Globals
+/// 
+extern RTL_GENERIC_TABLE OpenProcessTable;
+extern FEOPTLOCK FeOptLock;
