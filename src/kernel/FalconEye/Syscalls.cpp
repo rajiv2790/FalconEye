@@ -72,8 +72,6 @@ DEF_ORIG_SYSCALL_PTR(NtUserMessageCall);
 DEF_ORIG_SYSCALL_PTR(NtUserPostThreadMessage);
 DEF_ORIG_SYSCALL_PTR(NtUserSendInput);
 
-// syscall definitions
-
 NTSTATUS GetSyscallAddresses()
 {
     NTSTATUS     status = STATUS_SUCCESS;
@@ -136,14 +134,10 @@ NTSTATUS DetourNtWriteVirtualMemory(
     _In_ ULONG                NumberOfBytesToWrite,
     _Out_opt_ PULONG          NumberOfBytesWritten)
 {
-    //kprintf("FalconEye: DetourNtWriteVirtualMemory: Handle %p Buffer %p.\n", ProcessHandle, Buffer);
-    
-    // write into current process; skip
-    HANDLE CurrentPsHandle = PsGetProcessId(PsGetCurrentProcess());
-    ULONG callerPid = ULONG((LONGLONG)CurrentPsHandle & 0xffffffff);
-    ULONG targetPid = GetProcessIdByHandle(ProcessHandle);
-    if (callerPid != targetPid) {
-        TestMemImageByAddress(Buffer);
+    if (SELF_PROCESS_HANDLE != ProcessHandle) {
+        //TestMemImageByAddress(Buffer);
+        ULONG callerPid, targetPid;
+        GetActionPids(ProcessHandle, &callerPid, &targetPid);
         AddNtWriteVirtualMemoryEntry(callerPid, targetPid, BaseAddress, Buffer, NumberOfBytesToWrite);
     }
     return NtWriteVirtualMemoryOrigPtr(ProcessHandle, BaseAddress, Buffer, NumberOfBytesToWrite, NumberOfBytesWritten);
@@ -153,7 +147,16 @@ NTSTATUS DetourNtSuspendThread(
     _In_ HANDLE               ThreadHandle,
     _Out_opt_ PULONG          PreviousSuspendCount)
 {
-    //kprintf("FalconEye: DetourNtSuspendThread: ThreadHandle %p.\n", ThreadHandle);
+    if (SELF_PROCESS_HANDLE != ThreadHandle) {
+        ULONG callerPid, targetPid;
+        GetActionPidsByThread(ThreadHandle, &callerPid, &targetPid);
+        if (callerPid != targetPid) {
+            ULONG targetTid = GetThreadIdByHandle(ThreadHandle);
+            kprintf("FalconEye: DetourNtSuspendThread: callerPid %d targetPid %d targetTid %d.\n", callerPid, targetPid, targetTid);
+            AddNtSuspendThreadEntry(callerPid, targetPid, targetTid);
+        }
+    }
+    
     return NtSuspendThreadOrigPtr(ThreadHandle, PreviousSuspendCount);
 }
 
@@ -169,14 +172,28 @@ NTSTATUS DetourNtMapViewOfSection(
     _In_ ULONG                AllocationType,
     _In_ ULONG                Protect)
 {
-    //kprintf("FalconEye: DetourNtMapViewOfSection: SectionOffset %p.\n", SectionOffset);
-    return NtMapViewOfSectionOrigPtr(SectionHandle, ProcessHandle, BaseAddress, ZeroBits, CommitSize, SectionOffset, ViewSize, InheritDisposition, AllocationType, Protect);
+    if (SELF_PROCESS_HANDLE != ProcessHandle) {
+        ULONG callerPid = 0, targetPid = 0;
+        //GetActionPids(ProcessHandle, &callerPid, &targetPid);
+        kprintf("FalconEye: DetourNtMapViewOfSection: SectionHandle %p CallerPid %d TargetPid %d BaseAddress %p Commitsize %d.\n", 
+            SectionHandle, callerPid, targetPid, BaseAddress, CommitSize);
+    }
+    return NtMapViewOfSectionOrigPtr(SectionHandle, ProcessHandle, BaseAddress, 
+        ZeroBits, CommitSize, SectionOffset, 
+        ViewSize, InheritDisposition, AllocationType, Protect);
 }
 
 NTSTATUS DetourNtUnmapViewOfSection(
     _In_ HANDLE               ProcessHandle,
     _In_ PVOID                BaseAddress)
 {
+    if (SELF_PROCESS_HANDLE != ProcessHandle) {
+        ULONG callerPid, targetPid;
+        GetActionPids(ProcessHandle, &callerPid, &targetPid);
+        kprintf("FalconEye: DetourNtUnmapViewOfSection: CallerPid %d TargetPid %d BaseAddress %p.\n",
+            callerPid, targetPid, BaseAddress);
+        AddNtUnmapViewOfSectionEntry(callerPid, targetPid, BaseAddress);
+    }
     //kprintf("FalconEye: DetourNtUnmapViewOfSection: ProcessHandle %p.\n", ProcessHandle);
     return NtUnmapViewOfSectionOrigPtr(ProcessHandle, BaseAddress);
 }
@@ -191,6 +208,12 @@ NTSTATUS DetourNtCreateThread(
     _In_ PINITIAL_TEB         InitialTeb,
     _In_ BOOLEAN              CreateSuspended)
 {
+    if (SELF_PROCESS_HANDLE != ProcessHandle) {
+        ULONG callerPid, targetPid;
+        GetActionPids(ProcessHandle, &callerPid, &targetPid);
+        kprintf("FalconEye: DetourNtCreateThread: CallerPid %d TargetPid %d.\n",
+            callerPid, targetPid);
+    }
     //kprintf("FalconEye: DetourNtCreateThread: ProcessHandle %p.\n", ProcessHandle);
     return NtCreateThreadOrigPtr(ThreadHandle, DesiredAccess, ObjectAttributes, ProcessHandle, ClientId, ThreadContext, InitialTeb, CreateSuspended);
 }
@@ -199,7 +222,15 @@ NTSTATUS DetourNtResumeThread(
     _In_ HANDLE             ThreadHandle,
     _Out_opt_ PULONG        SuspendCount)
 {
-    //kprintf("FalconEye: DetourNtResumeThread: ThreadHandle %p.\n", ThreadHandle);
+    if (SELF_PROCESS_HANDLE != ThreadHandle) {
+        ULONG callerPid, targetPid;
+        GetActionPidsByThread(ThreadHandle, &callerPid, &targetPid);
+        if (callerPid != targetPid) {
+            ULONG targetTid = GetThreadIdByHandle(ThreadHandle);
+            kprintf("FalconEye: DetourNtResumeThread: callerPid %d targetPid %d targetTid %d.\n",
+                callerPid, targetPid, targetTid);
+        }
+    }
     return NtResumeThreadOrigPtr(ThreadHandle, SuspendCount);
 }
 
@@ -210,7 +241,15 @@ NTSTATUS DetourNtQueueApcThread(
     _In_ PIO_STATUS_BLOCK     ApcStatusBlock,
     _In_ ULONG                ApcReserved)
 {
-    //kprintf("FalconEye: DetourNtQueueApcThread: ThreadHandle %p.\n", ThreadHandle);
+    if (SELF_PROCESS_HANDLE != ThreadHandle) {
+        ULONG callerPid, targetPid;
+        GetActionPidsByThread(ThreadHandle, &callerPid, &targetPid);
+        if (callerPid != targetPid) {
+            ULONG targetTid = GetThreadIdByHandle(ThreadHandle);
+            kprintf("FalconEye: DetourNtQueueApcThread: callerPid %d targetPid %d targetTid %d ApcRoutine %p ApcContext %p.\n",
+                callerPid, targetPid, targetTid, ApcRoutine, ApcRoutineContext);
+        }
+    }
     return NtQueueApcThreadOrigPtr(ThreadHandle, ApcRoutine, ApcRoutineContext, ApcStatusBlock, ApcReserved);
 }
 
@@ -218,14 +257,27 @@ NTSTATUS DetourNtSetContextThread(
     _In_ HANDLE               ThreadHandle,
     _In_ PCONTEXT             Context)
 {
-    //kprintf("FalconEye: DetourNtSetContextThread: ThreadHandle %p.\n", ThreadHandle);
+    if (SELF_PROCESS_HANDLE != ThreadHandle) {
+        ULONG callerPid, targetPid;
+        GetActionPidsByThread(ThreadHandle, &callerPid, &targetPid);
+        if (callerPid != targetPid) {
+            ULONG targetTid = GetThreadIdByHandle(ThreadHandle);
+            kprintf("FalconEye: DetourNtSetContextThread: callerPid %d targetPid %d targetTid %d Context %p.\n",
+                callerPid, targetPid, targetTid, Context);
+        }
+    }
     return NtSetContextThreadOrigPtr(ThreadHandle, Context);
 }
 
 NTSTATUS DetourNtSuspendProcess(
     _In_ HANDLE ProcessHandle)
 {
-    //kprintf("FalconEye: DetourNtSuspendProcess: ProcessHandle %p.\n", ProcessHandle);
+    if (SELF_PROCESS_HANDLE != ProcessHandle) {
+        ULONG callerPid, targetPid;
+        GetActionPids(ProcessHandle, &callerPid, &targetPid);
+        kprintf("FalconEye: DetourNtSuspendProcess: callerPid %d targetPid %d.\n",
+            callerPid, targetPid);
+    }
     return NtSuspendProcessOrigPtr(ProcessHandle);
 }
 
@@ -235,7 +287,12 @@ NTSTATUS DetourNtSetInformationProcess(
     _In_ PVOID                ProcessInformation,
     _In_ ULONG                ProcessInformationLength)
 {
-    //kprintf("FalconEye: DetourNtSetInformationProcess: ProcessHandle %p.\n", ProcessHandle);
+    if (SELF_PROCESS_HANDLE != ProcessHandle) {
+        ULONG callerPid, targetPid;
+        GetActionPids(ProcessHandle, &callerPid, &targetPid);
+        kprintf("FalconEye: DetourNtSetInformationProcess: callerPid %d targetPid %d InfoClass %d.\n",
+            callerPid, targetPid, ProcessInformationClass);
+    }
     return NtSetInformationProcessOrigPtr(ProcessHandle, ProcessInformationClass, ProcessInformation, ProcessInformationLength);
 }
 
@@ -249,7 +306,12 @@ NTSTATUS DetourNtConnectPort(
     _In_ PVOID                ConnectionInfo,
     _In_ PULONG               ConnectionInfoLength)
 {
-    //kprintf("FalconEye: DetourNtConnectPort: ClientPortHandle %p.\n", ClientPortHandle);
+    HANDLE CurrentPsHandle = PsGetProcessId(PsGetCurrentProcess());
+    ULONG callerPid = ULONG((LONGLONG)CurrentPsHandle & 0xffffffff);
+    if (NULL != ServerPortName) {
+        kprintf("FalconEye: DetourNtConnectPort: callerPid %d serverPort %wZ connectionInfo %p.\n",
+            callerPid, ServerPortName, ConnectionInfo);
+    }
     return NtConnectPortOrigPtr(ClientPortHandle, ServerPortName, SecurityQos, ClientSharedMemory, ServerSharedMemory, MaximumMessageLength, ConnectionInfo, ConnectionInfoLength);
 }
 
@@ -258,7 +320,12 @@ NTSTATUS DetourNtFlushInstructionCache(
     _In_ PVOID                BaseAddress,
     _In_ ULONG                NumberOfBytesToFlush)
 {
-    //kprintf("FalconEye: DetourNtFlushInstructionCache: BaseAddress %p.\n", BaseAddress);
+    if (SELF_PROCESS_HANDLE != ProcessHandle) {
+        ULONG callerPid, targetPid;
+        GetActionPids(ProcessHandle, &callerPid, &targetPid);
+        kprintf("FalconEye: DetourNtFlushInstructionCache: callerPid %d targetPid %d BaseAddress %p BytesToFlush %d.\n",
+            callerPid, targetPid, BaseAddress, NumberOfBytesToFlush);
+    }
     return NtFlushInstructionCacheOrigPtr(ProcessHandle, BaseAddress, NumberOfBytesToFlush);
 }
 
@@ -270,7 +337,12 @@ NTSTATUS DetourNtQueryInformationProcess(
     PULONG           ReturnLength
     )
 {
-    //kprintf("FalconEye: DetourNtQueryInformationProcess: ProcessHandle %p.\n", ProcessHandle);
+    if (SELF_PROCESS_HANDLE != ProcessHandle) {
+        ULONG callerPid, targetPid;
+        GetActionPids(ProcessHandle, &callerPid, &targetPid);
+        // kprintf("FalconEye: DetourNtQueryInformationProcess: callerPid %d targetPid %d InfoClass %d.\n",
+        //    callerPid, targetPid, ProcessInformationClass);
+    }
     return NtQueryInformationProcessOrigPtr(ProcessHandle, ProcessInformationClass, ProcessInformation, ProcessInformationLength, ReturnLength);
 }
 
@@ -283,12 +355,24 @@ BOOL DetourNtUserSetProp(
     return NtUserSetPropOrigPtr(hWnd, Atom, Data);
 }
 
+
 void SaveOriginalFunctionAddress(
     unsigned int SystemCallIndex,
     void** SystemCallFunction)
 {
-    UNREFERENCED_PARAMETER(SystemCallIndex);
-    UNREFERENCED_PARAMETER(SystemCallFunction);
+    SAVE_FN_ADDR(0x3A, NtWriteVirtualMemory);
+    SAVE_FN_ADDR(0x45, NtQueueApcThread);
+    SAVE_FN_ADDR(0x19, NtQueryInformationProcess);
+    SAVE_FN_ADDR(0x1c, NtSetInformationProcess);
+    SAVE_FN_ADDR(0x28, NtMapViewOfSection);
+    SAVE_FN_ADDR(0x2a, NtUnmapViewOfSection);
+    SAVE_FN_ADDR(0x52, NtResumeThread);
+    SAVE_FN_ADDR(0x9e, NtConnectPort);
+    SAVE_FN_ADDR(0x1b6, NtSuspendThread);
+    SAVE_FN_ADDR(0x185, NtSetContextThread);
+    SAVE_FN_ADDR(0x1b5, NtSuspendProcess);
+    SAVE_FN_ADDR(0xe2, NtFlushInstructionCache);
+    SAVE_FN_ADDR(0x4e, NtCreateThread);
 
 #if 0
     if (0x104C == SystemCallIndex) {
@@ -336,57 +420,36 @@ void SaveOriginalFunctionAddress(
 #endif
 }
 
-PVOID GetDetourFunction(PVOID OrigSyscall)
+PVOID GetDetourFunction(unsigned int idx)
 {
-    if (OrigSyscall == NtWriteVirtualMemoryOrigPtr) {
+    switch (idx) {
+    case 0x3A:
         return DetourNtWriteVirtualMemory;
-    }
-#if 0
-    else if (OrigSyscall == NtAddAtomExOrigPtr) {
-        return DetourNtAddAtomEx;
-    }
-
-    else if (OrigSyscall == NtSuspendThreadOrigPtr) {
-        return DetourNtSuspendThread;
-    }
-    else if (OrigSyscall == NtMapViewOfSectionOrigPtr) {
-        return DetourNtMapViewOfSection;
-    }
-    else if (OrigSyscall == NtUnmapViewOfSectionOrigPtr) {
-        return DetourNtUnmapViewOfSection;
-    }
-    else if (OrigSyscall == NtCreateThreadOrigPtr) {
-        return DetourNtCreateThread;
-    }
-    else if (OrigSyscall == NtResumeThreadOrigPtr) {
-        return DetourNtResumeThread;
-    }
-    else if (OrigSyscall == NtQueueApcThreadOrigPtr) {
-        return DetourNtQueueApcThread;
-    }
-    else if (OrigSyscall == NtSetContextThreadOrigPtr) {
-        return DetourNtSetContextThread;
-    }
-    else if (OrigSyscall == NtSuspendProcessOrigPtr) {
-        return DetourNtSuspendProcess;
-    }
-    else if (OrigSyscall == NtSetInformationProcessOrigPtr) {
-        return DetourNtSetInformationProcess;
-    }
-    else if (OrigSyscall == NtConnectPortOrigPtr) {
-        return DetourNtConnectPort;
-    }
-    else if (OrigSyscall == NtFlushInstructionCacheOrigPtr) {
-        return DetourNtFlushInstructionCache;
-    }
-    else if (OrigSyscall == NtQueryInformationProcessOrigPtr) {
+    //case 0x45:
+    //    return DetourNtQueueApcThread;
+    case 0x19: 
         return DetourNtQueryInformationProcess;
+    case 0x1c: 
+        return DetourNtSetInformationProcess;
+    //case 0x28: 
+    //    return DetourNtMapViewOfSection;
+    //case 0x2a: 
+    //    return DetourNtUnmapViewOfSection;
+    case 0x52: 
+        return DetourNtResumeThread;
+    case 0x9e: 
+        return DetourNtConnectPort;
+    case 0x1b6:
+        return DetourNtSuspendThread;
+    case 0x185:
+        return DetourNtSetContextThread;
+    case 0x1b5:
+        return DetourNtSuspendProcess;
+    case 0xe2:
+        return DetourNtFlushInstructionCache;
+    case 0x4e:
+        return DetourNtCreateThread;
+    default:
+        return NULL;
     }
-    /*
-    else if (NULL != NtUserSetPropOrigPtr && OrigSyscall == NtUserSetPropOrigPtr) {
-        return DetourNtUserSetProp;
-    }
-    */
-#endif
-    return NULL;
 }

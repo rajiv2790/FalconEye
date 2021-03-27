@@ -1,9 +1,23 @@
+#include <excpt.h>
 #include "stdafx.h"
 #include "ActionHistory.h"
 
 NtWVMEntry* NtWVMBuffer = NULL;
 SIZE_T      freeNtWVMIdx = 0;
 ERESOURCE   NtWVMLock;
+
+NtUnMVSEntry* NtUnMVSBuffer = NULL;
+SIZE_T      freeNtUnMVSIdx = 0;
+ERESOURCE   NtUnMVSLock;
+
+NtSTEntry*  NtSTBuffer = NULL;
+SIZE_T      freeNtSTIdx = 0;
+ERESOURCE   NtSTLock;
+
+extern "C" {
+    NTSTATUS ReadWVMData(PVOID localBuffer, ULONG bufferSize, PCHAR targetBuffer);
+}
+
 ULONG       ActionHistoryTag = 0xfffe;
 
 BOOLEAN InitNtWVMHistory()
@@ -20,9 +34,40 @@ BOOLEAN InitNtWVMHistory()
     return TRUE;
 }
 
+BOOLEAN InitNtUnMVSHistory()
+{
+    NtUnMVSBuffer = (NtUnMVSEntry*)ExAllocatePoolWithTag(
+        NonPagedPool,
+        NTUNMVS_BUFFER_SIZE * sizeof(NtUnMVSEntry),
+        ActionHistoryTag
+    );
+    if (NULL == NtUnMVSBuffer) {
+        return FALSE;
+    }
+    ExInitializeResourceLite(&NtUnMVSLock);
+    return TRUE;
+}
+
+BOOLEAN InitNtSTHistory()
+{
+    NtSTBuffer = (NtSTEntry*)ExAllocatePoolWithTag(
+        NonPagedPool,
+        NTST_BUFFER_SIZE * sizeof(NtSTEntry),
+        ActionHistoryTag
+    );
+    if (NULL == NtSTBuffer) {
+        return FALSE;
+    }
+    ExInitializeResourceLite(&NtSTLock);
+    return TRUE;
+}
+
+
 BOOLEAN InitActionHistory()
 {
     InitNtWVMHistory();
+    InitNtUnMVSHistory();
+    InitNtSTHistory();
     return TRUE;
 }
 
@@ -34,10 +79,13 @@ BOOLEAN AddNtWriteVirtualMemoryEntry(
     ULONG   bufferSize
 )
 {
+    CHAR targetBuffer[NTWVM_DATA_COPY_SIZE] = { 0 };
+    ReadWVMData(localBuffer, bufferSize, targetBuffer);
     if (FALSE == ExAcquireResourceExclusiveLite(&NtWVMLock, TRUE)) {
         return FALSE;
     }
     NtWVMBuffer[freeNtWVMIdx] = { callerPid, targetPid, targetAddr, localBuffer, bufferSize };
+    RtlCopyMemory(NtWVMBuffer[freeNtWVMIdx].initialData, targetBuffer, NTWVM_DATA_COPY_SIZE);
     freeNtWVMIdx = (freeNtWVMIdx + 1) % NTWVM_BUFFER_SIZE;
     ExReleaseResourceLite(&NtWVMLock);
     return TRUE;
@@ -60,11 +108,90 @@ NtWVMEntry* FindNtWriteVirtualMemoryEntry(ULONG callerPid, ULONG targetPid)
     }
     for (auto i = 0; i < NTWVM_BUFFER_SIZE; i++) {
         if (callerPid == NtWVMBuffer[i].callerPid && targetPid == NtWVMBuffer[i].targetPid) {
-            //entry = &NtWVMBuffer[i];
             RtlCopyMemory(entry, &NtWVMBuffer[i], sizeof(NtWVMEntry));
             break;
         }
     }
     ExReleaseResourceLite(&NtWVMLock);
+    return entry;
+}
+
+BOOLEAN AddNtUnmapViewOfSectionEntry(
+    ULONG   callerPid,
+    ULONG   targetPid,
+    PVOID   baseAddr
+)
+{
+    if (FALSE == ExAcquireResourceExclusiveLite(&NtUnMVSLock, TRUE)) {
+        return FALSE;
+    }
+    NtUnMVSBuffer[freeNtUnMVSIdx] = { callerPid, targetPid, baseAddr };
+    freeNtUnMVSIdx = (freeNtUnMVSIdx + 1) % NTWVM_BUFFER_SIZE;
+    ExReleaseResourceLite(&NtUnMVSLock);
+    return TRUE;
+}
+
+// Caller must deallocate NtWVMEntry
+NtUnMVSEntry* FindNtUnmapViewOfSectionEntry(ULONG callerPid, ULONG targetPid)
+{
+    NtUnMVSEntry* entry = NULL;
+    if (FALSE == ExAcquireResourceExclusiveLite(&NtUnMVSLock, TRUE)) {
+        return FALSE;
+    }
+    entry = (NtUnMVSEntry*)ExAllocatePoolWithTag(
+        NonPagedPool,
+        sizeof(NtUnMVSEntry),
+        ActionHistoryTag);
+    if (NULL == entry) {
+        ExReleaseResourceLite(&NtUnMVSLock);
+        return FALSE;
+    }
+    for (auto i = 0; i < NTUNMVS_BUFFER_SIZE; i++) {
+        if (callerPid == NtUnMVSBuffer[i].callerPid && targetPid == NtUnMVSBuffer[i].targetPid) {
+            RtlCopyMemory(entry, &NtUnMVSBuffer[i], sizeof(NtUnMVSEntry));
+            break;
+        }
+    }
+    ExReleaseResourceLite(&NtUnMVSLock);
+    return entry;
+}
+
+BOOLEAN AddNtSuspendThreadEntry(
+    ULONG   callerPid,
+    ULONG   targetPid,
+    ULONG   targetTid
+)
+{
+    if (FALSE == ExAcquireResourceExclusiveLite(&NtSTLock, TRUE)) {
+        return FALSE;
+    }
+    NtSTBuffer[freeNtSTIdx] = { callerPid, targetPid, targetTid };
+    freeNtSTIdx = (freeNtSTIdx + 1) % NTST_BUFFER_SIZE;
+    ExReleaseResourceLite(&NtSTLock);
+    return TRUE;
+}
+
+// Caller must deallocate NtWVMEntry
+NtSTEntry* FindNtSuspendThreadEntry(ULONG callerPid, ULONG targetPid)
+{
+    NtSTEntry* entry = NULL;
+    if (FALSE == ExAcquireResourceExclusiveLite(&NtSTLock, TRUE)) {
+        return FALSE;
+    }
+    entry = (NtSTEntry*)ExAllocatePoolWithTag(
+        NonPagedPool,
+        sizeof(NtSTEntry),
+        ActionHistoryTag);
+    if (NULL == entry) {
+        ExReleaseResourceLite(&NtSTLock);
+        return FALSE;
+    }
+    for (auto i = 0; i < NTST_BUFFER_SIZE; i++) {
+        if (callerPid == NtSTBuffer[i].callerPid && targetPid == NtSTBuffer[i].targetPid) {
+            RtlCopyMemory(entry, &NtSTBuffer[i], sizeof(NtSTEntry));
+            break;
+        }
+    }
+    ExReleaseResourceLite(&NtSTLock);
     return entry;
 }

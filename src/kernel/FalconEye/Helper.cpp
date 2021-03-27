@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "Helper.h"
+extern PVOID64 kernel32Base;
 
 ULONG GetProcessIdByHandle(HANDLE process)
 {
@@ -17,6 +18,129 @@ ULONG GetProcessIdByHandle(HANDLE process)
         ObDereferenceObject(pProc);
         return (ULONG)((LONGLONG)proc & 0xffffffff);
     }
-    ObDereferenceObject(pProc);
+    if (NULL != pProc) {
+        ObDereferenceObject(pProc);
+    }
     return 0;
+}
+
+ULONG GetThreadIdByHandle(HANDLE thread)
+{
+    PETHREAD    pThr = NULL;
+
+    NTSTATUS status = ObReferenceObjectByHandle(
+        thread,
+        GENERIC_READ,
+        *PsThreadType,
+        KernelMode,
+        (PVOID*)&pThr,
+        NULL);
+    if (STATUS_SUCCESS == status && NULL != pThr) {
+        HANDLE thr = PsGetThreadId(pThr);
+        ObDereferenceObject(pThr);
+        return (ULONG)((LONGLONG)thr & 0xffffffff);
+    }
+    if (NULL != pThr) {
+        ObDereferenceObject(pThr);
+    }
+    return 0;
+}
+
+HANDLE GetProcessHandleByThreadHandle (HANDLE thread)
+{
+    PETHREAD    pThr = NULL;
+
+    NTSTATUS status = ObReferenceObjectByHandle(
+        thread,
+        GENERIC_READ,
+        *PsThreadType,
+        KernelMode,
+        (PVOID*)&pThr,
+        NULL);
+    if (STATUS_SUCCESS == status && NULL != pThr) {
+        HANDLE proc = PsGetThreadProcessId(pThr);
+        ObDereferenceObject(pThr);
+        return proc;
+    }
+    if (NULL != pThr) {
+        ObDereferenceObject(pThr);
+    }
+    return 0;
+}
+
+ULONG GetProcessIdByThreadHandle(HANDLE thread)
+{
+    PETHREAD    pThr = NULL;
+
+    NTSTATUS status = ObReferenceObjectByHandle(
+        thread,
+        GENERIC_READ,
+        *PsThreadType,
+        KernelMode,
+        (PVOID*)&pThr,
+        NULL);
+    if (STATUS_SUCCESS == status && NULL != pThr) {
+        HANDLE proc = PsGetThreadProcessId(pThr);
+        ObDereferenceObject(pThr);
+        return (ULONG)((LONGLONG)proc & 0xffffffff);
+    }
+    if (NULL != pThr) {
+        ObDereferenceObject(pThr);
+    }
+    return 0;
+}
+
+BOOLEAN IsCurrentProcessTarget(HANDLE ProcessHandle)
+{
+    HANDLE CurrentPsHandle = PsGetProcessId(PsGetCurrentProcess());
+    ULONG callerPid = ULONG((LONGLONG)CurrentPsHandle & 0xffffffff);
+    ULONG targetPid = GetProcessIdByHandle(ProcessHandle);
+    if (targetPid != 0 && callerPid == targetPid) {
+        return TRUE;
+    }
+    return FALSE;
+}
+
+BOOLEAN IsCurrentProcessTargetByThread(HANDLE ThreadHandle)
+{
+    HANDLE CurrentPsHandle = PsGetProcessId(PsGetCurrentProcess());
+    ULONG callerPid = ULONG((LONGLONG)CurrentPsHandle & 0xffffffff);
+    ULONG targetPid = GetProcessIdByThreadHandle(ThreadHandle);
+    if (targetPid != 0 && callerPid == targetPid) {
+        return TRUE;
+    }
+    return FALSE;
+}
+
+BOOLEAN GetActionPids(HANDLE ProcessHandle, ULONG* pCallerPid, ULONG* pTargetPid)
+{
+    HANDLE CurrentPsHandle = PsGetProcessId(PsGetCurrentProcess());
+    *pCallerPid = ULONG((LONGLONG)CurrentPsHandle & 0xffffffff);
+    *pTargetPid = GetProcessIdByHandle(ProcessHandle);
+
+    return TRUE;
+}
+
+BOOLEAN GetActionPidsByThread(HANDLE ThreadHandle, ULONG* pCallerPid, ULONG* pTargetPid)
+{
+    HANDLE CurrentPsHandle = PsGetProcessId(PsGetCurrentProcess());
+    *pCallerPid = ULONG((LONGLONG)CurrentPsHandle & 0xffffffff);
+    *pTargetPid = GetProcessIdByThreadHandle(ThreadHandle);
+
+    return TRUE;
+}
+
+ULONG IsKnownAPIOffset(PCHAR pAddr)
+{
+    if (pAddr == (PCHAR)kernel32Base + GLOBALADDATOMA_OFFSET
+    || pAddr == (PCHAR)kernel32Base + GLOBALADDATOMW_OFFSET
+    || pAddr == (PCHAR)kernel32Base + GLOBALADDATOMEXA_OFFSET
+    || pAddr == (PCHAR)kernel32Base + GLOBALADDATOMEXW_OFFSET) {
+        return eGlobalAddAtom;
+    }
+    else if (pAddr == (PCHAR)kernel32Base + LOADLIBA_OFFSET
+    || pAddr == (PCHAR)kernel32Base + LOADLIBW_OFFSET) {
+        return eLoadLibrary;
+    }
+    return eUnknownApi;
 }

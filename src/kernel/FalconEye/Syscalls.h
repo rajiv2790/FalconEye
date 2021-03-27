@@ -141,7 +141,7 @@ typedef ULONG(*NtUserSendInput_t)(
 extern PVOID64 NtBaseAddress;
 NTSTATUS GetSyscallAddresses();
 PVOID64 FindNtBase(PVOID64 start);
-PVOID GetDetourFunction(PVOID OrigSyscall);
+PVOID GetDetourFunction(unsigned int idx);
 void SaveOriginalFunctionAddress(unsigned int SystemCallIndex, void** SystemCallFunction);
 
 // defs for API strings and addresses
@@ -158,6 +158,14 @@ void SaveOriginalFunctionAddress(unsigned int SystemCallIndex, void** SystemCall
         status = STATUS_ENTRYPOINT_NOT_FOUND; \
     } else { \
         kprintf("[-] : For: %wZ Address: %p.\n", _name_##Str, _name_##OrigPtr); \
+    }
+
+#define SAVE_FN_ADDR(_idx_,_name_) \
+    if (_idx_ == SystemCallIndex) { \
+        if (NULL ==  _name_##OrigPtr) { \
+			kprintf("[+] FalconEye: %wZ %lu: 0x%p [stack: 0x%p].\n", _name_##Str, SystemCallIndex, *SystemCallFunction, SystemCallFunction); \
+             _name_##OrigPtr = (_name_##_t)*SystemCallFunction; \
+        } \
     }
 
 // add NtBase + Offset

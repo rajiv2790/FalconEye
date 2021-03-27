@@ -186,6 +186,7 @@
     <ClCompile Include="entry.cpp" />
     <ClCompile Include="FloatingCodeDetect.cpp" />
     <ClCompile Include="Helper.cpp" />
+    <ClCompile Include="ReadUserBuffer.c" />
     <ClCompile Include="stdafx.cpp" />
     <ClCompile Include="Syscalls.cpp" />
   </ItemGroup>

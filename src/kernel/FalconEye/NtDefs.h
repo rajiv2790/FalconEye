@@ -1,6 +1,7 @@
 #pragma once
 #define CALLBACK   __stdcall
 
+#define SELF_PROCESS_HANDLE (HANDLE)0xffffffffffffffff
 #define MEM_IMAGE 0x1000000
 #define IMAGE_DOS_SIGNATURE                 0x5A4D      // MZ
 

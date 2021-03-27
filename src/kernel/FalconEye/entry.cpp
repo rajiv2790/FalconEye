@@ -76,11 +76,6 @@ extern "C" NTSTATUS DriverEntry(
 	status = FEPerformLoadImageCallbackRegistration();
 
 	//
-	// Figure out when we built this last for debugging purposes.
-	//
-	kprintf("[+] falconeye: Loaded.\n");
-
-	//
 	// Let the driver be unloaded gracefully. This also turns off 
 	// infinity hook.
 	//
@@ -95,7 +90,6 @@ extern "C" NTSTATUS DriverEntry(
 
 	FindNtBase(OriginalNtCreateFile);
 	InitActionHistory();
-	GetSyscallAddresses();
 
 	// Initialize infinity hook. Each system call will be redirected to syscall stub.
 	NTSTATUS Status = IfhInitialize(SyscallStub);
@@ -173,8 +167,9 @@ void __fastcall SyscallStub(
 
 	SaveOriginalFunctionAddress(SystemCallIndex, SystemCallFunction);
 
-	void** DetourAddress = (void**)GetDetourFunction(*SystemCallFunction);
+	void** DetourAddress = (void**)GetDetourFunction(SystemCallIndex);
 	if (DetourAddress) {
+		//kprintf("[+] FalconEye: SYSCALL %lu: DetourAddr 0x%p \n", SystemCallIndex, DetourAddress);
 		*SystemCallFunction = DetourAddress;
 	}
 }
