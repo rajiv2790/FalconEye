@@ -172,12 +172,12 @@ NTSTATUS DetourNtMapViewOfSection(
     _In_ ULONG                AllocationType,
     _In_ ULONG                Protect)
 {
-    if (SELF_PROCESS_HANDLE != ProcessHandle) {
+    /*if (SELF_PROCESS_HANDLE != ProcessHandle) {
         ULONG callerPid = 0, targetPid = 0;
         //GetActionPids(ProcessHandle, &callerPid, &targetPid);
-        kprintf("FalconEye: DetourNtMapViewOfSection: SectionHandle %p CallerPid %d TargetPid %d BaseAddress %p Commitsize %d.\n", 
-            SectionHandle, callerPid, targetPid, BaseAddress, CommitSize);
-    }
+        kprintf("FalconEye: DetourNtMapViewOfSection: CallerPid %d TargetPid %d .\n", 
+            callerPid, targetPid);
+    }*/
     return NtMapViewOfSectionOrigPtr(SectionHandle, ProcessHandle, BaseAddress, 
         ZeroBits, CommitSize, SectionOffset, 
         ViewSize, InheritDisposition, AllocationType, Protect);
@@ -242,12 +242,11 @@ NTSTATUS DetourNtQueueApcThread(
     _In_ ULONG                ApcReserved)
 {
     if (SELF_PROCESS_HANDLE != ThreadHandle) {
-        ULONG callerPid, targetPid;
+        ULONG callerPid = 0, targetPid = 0;
         GetActionPidsByThread(ThreadHandle, &callerPid, &targetPid);
         if (callerPid != targetPid) {
-            ULONG targetTid = GetThreadIdByHandle(ThreadHandle);
-            kprintf("FalconEye: DetourNtQueueApcThread: callerPid %d targetPid %d targetTid %d ApcRoutine %p ApcContext %p.\n",
-                callerPid, targetPid, targetTid, ApcRoutine, ApcRoutineContext);
+            kprintf("FalconEye: DetourNtQueueApcThread: callerPid %d targetPid %d ApcRoutine %p.\n",
+                callerPid, targetPid, ApcRoutine);
         }
     }
     return NtQueueApcThreadOrigPtr(ThreadHandle, ApcRoutine, ApcRoutineContext, ApcStatusBlock, ApcReserved);
@@ -373,51 +372,13 @@ void SaveOriginalFunctionAddress(
     SAVE_FN_ADDR(0x1b5, NtSuspendProcess);
     SAVE_FN_ADDR(0xe2, NtFlushInstructionCache);
     SAVE_FN_ADDR(0x4e, NtCreateThread);
-
-#if 0
-    if (0x104C == SystemCallIndex) {
-        kprintf("[+] FalconEye: NtUserSetProp %lu: 0x%p [stack: 0x%p].\n", SystemCallIndex, *SystemCallFunction, SystemCallFunction);
-        if (NULL == NtUserSetPropOrigPtr) {
-            NtUserSetPropOrigPtr = (NtUserSetProp_t)*SystemCallFunction;
-        }
-    }
-    if (0x1089 == SystemCallIndex) {
-        kprintf("[+] FalconEye: NtUserSetWindowsHookEx %lu: 0x%p [stack: 0x%p].\n", SystemCallIndex, *SystemCallFunction, SystemCallFunction);
-        if (NULL == NtUserSetWindowsHookExOrigPtr) {
-            NtUserSetWindowsHookExOrigPtr = (NtUserSetWindowsHookEx_t)*SystemCallFunction;
-        }
-    }
-    if (0x1523 == SystemCallIndex) {
-        kprintf("[+] FalconEye: NtUserSetWindowLongPtr %lu: 0x%p [stack: 0x%p].\n", SystemCallIndex, *SystemCallFunction, SystemCallFunction);
-        if (NULL == NtUserSetWindowLongPtrOrigPtr) {
-            NtUserSetWindowLongPtrOrigPtr = (NtUserSetWindowLongPtr_t)*SystemCallFunction;
-        }
-    }
-    if (0x100F == SystemCallIndex) {
-        kprintf("[+] FalconEye: NtUserPostMessage %lu: 0x%p [stack: 0x%p].\n", SystemCallIndex, *SystemCallFunction, SystemCallFunction);
-        if (NULL == NtUserPostMessageOrigPtr) {
-            NtUserPostMessageOrigPtr = (NtUserPostMessage_t)*SystemCallFunction;
-        }
-    }
-    if (0x1007 == SystemCallIndex) {
-        kprintf("[+] FalconEye: NtUserMessageCall %lu: 0x%p [stack: 0x%p].\n", SystemCallIndex, *SystemCallFunction, SystemCallFunction);
-        if (NULL == NtUserMessageCallOrigPtr) {
-            NtUserMessageCallOrigPtr = (NtUserMessageCall_t)*SystemCallFunction;
-        }
-    }
-    if (0x105E == SystemCallIndex) {
-        kprintf("[+] FalconEye: NtUserPostThreadMessage %lu: 0x%p [stack: 0x%p].\n", SystemCallIndex, *SystemCallFunction, SystemCallFunction);
-        if (NULL == NtUserPostThreadMessageOrigPtr) {
-            NtUserPostThreadMessageOrigPtr = (NtUserPostThreadMessage_t)*SystemCallFunction;
-        }
-    }
-    if (0x107F == SystemCallIndex) {
-        kprintf("[+] FalconEye: NtUserSendInput %lu: 0x%p [stack: 0x%p].\n", SystemCallIndex, *SystemCallFunction, SystemCallFunction);
-        if (NULL == NtUserSendInputOrigPtr) {
-            NtUserSendInputOrigPtr = (NtUserSendInput_t)*SystemCallFunction;
-        }
-    }
-#endif
+    SAVE_FN_ADDR(0x104F, NtUserSetProp);
+    SAVE_FN_ADDR(0x108C, NtUserSetWindowsHookEx);
+    SAVE_FN_ADDR(0x14E9, NtUserSetWindowLongPtr);
+    SAVE_FN_ADDR(0x1012, NtUserPostMessage);
+    SAVE_FN_ADDR(0x100A, NtUserMessageCall);
+    SAVE_FN_ADDR(0x1061, NtUserPostThreadMessage);
+    SAVE_FN_ADDR(0x1082, NtUserSendInput);
 }
 
 PVOID GetDetourFunction(unsigned int idx)
@@ -425,16 +386,16 @@ PVOID GetDetourFunction(unsigned int idx)
     switch (idx) {
     case 0x3A:
         return DetourNtWriteVirtualMemory;
-    //case 0x45:
-    //    return DetourNtQueueApcThread;
+    case 0x45:
+        return DetourNtQueueApcThread;
     case 0x19: 
         return DetourNtQueryInformationProcess;
     case 0x1c: 
         return DetourNtSetInformationProcess;
     //case 0x28: 
     //    return DetourNtMapViewOfSection;
-    //case 0x2a: 
-    //    return DetourNtUnmapViewOfSection;
+    case 0x2a: 
+        return DetourNtUnmapViewOfSection;
     case 0x52: 
         return DetourNtResumeThread;
     case 0x9e: 
@@ -449,6 +410,8 @@ PVOID GetDetourFunction(unsigned int idx)
         return DetourNtFlushInstructionCache;
     case 0x4e:
         return DetourNtCreateThread;
+    case 0x104F:
+        return DetourNtUserSetProp;
     default:
         return NULL;
     }
