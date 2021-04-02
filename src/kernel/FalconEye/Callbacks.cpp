@@ -1,11 +1,15 @@
 #include "stdafx.h"
 #include "entry.h"
+#include "Callbacks.h"
+#include "FloatingCodeDetect.h"
 
 BOOLEAN bFEObCallbackInstalled = FALSE;
 PVOID pCBRegistrationHandle = NULL;
 OB_CALLBACK_REGISTRATION  CBObRegistration = { 0 };
 OB_OPERATION_REGISTRATION CBOperationRegistrations[1] = { { 0 } };
 UNICODE_STRING CBAltitude = { 0 };
+
+BOOLEAN bFEThreadCallbackInstalled = FALSE;
 
 /*
 * Function to register obcallbacks to capture suspicious OpenProcess Events
@@ -35,8 +39,12 @@ NTSTATUS FEPerformObCallbackRegistration()
 	bFEObCallbackInstalled = TRUE;
 	if (!NT_SUCCESS(status))
 	{
-		kprintf("[+] falconeye: installing OB callbacks failed  status 0x%x\n", status);
+		kprintf("[+] falconeye: installing OB callbacks failed status 0x%x\n", status);
 		bFEObCallbackInstalled = FALSE;
+	}
+	else
+	{
+		kprintf("[+] falconeye: OB callback registered successfully\n");
 	}
 	return status;
 }
@@ -107,4 +115,78 @@ FEOpenProcessCallback(
 		}
 	}
 	return OB_PREOP_SUCCESS;
+}
+
+/*
+* Function to register thread create callback
+*/
+NTSTATUS FEPerformThreadCallbackRegistration()
+{
+	NTSTATUS status;
+	status = PsSetCreateThreadNotifyRoutineEx(PsCreateThreadNotifyNonSystem, (PVOID)&CreateThreadNotifyRoutineEx);
+
+	if (!NT_SUCCESS(status))
+	{
+		kprintf("[+] falconeye: installing Thread callbacks failed status 0x%x\n", status);
+		bFEThreadCallbackInstalled = FALSE;
+	}
+	else
+	{
+		kprintf("[+] falconeye: Thread callback registered successfully\n");
+		bFEThreadCallbackInstalled = TRUE;
+	}
+	return status;
+}
+
+NTSTATUS FEPerformThreadCallbackUnregistration()
+{
+	if (bFEThreadCallbackInstalled == TRUE)
+	{
+		PsRemoveCreateThreadNotifyRoutine((PCREATE_THREAD_NOTIFY_ROUTINE)&CreateThreadNotifyRoutineEx);
+		bFEThreadCallbackInstalled = FALSE;
+	}
+	return STATUS_SUCCESS;
+}
+
+/*
+* Callback function that gets called on Thread Create Events
+* 
+*/
+VOID CreateThreadNotifyRoutineEx(
+	_In_ HANDLE ProcessId,
+	_In_ HANDLE ThreadId,
+	_In_ BOOLEAN Create
+)
+{
+	ULONG64 startAddress;
+	NTSTATUS status;
+
+	HANDLE hProcess;
+	CLIENT_ID cid = { (HANDLE)ProcessId, NULL };
+	OBJECT_ATTRIBUTES oa;
+	InitializeObjectAttributes(&oa, 0, 0, 0, 0);
+
+	// If Thread created as opposed to deleted
+	if (Create == TRUE)
+	{	
+		// Get the start address of the thread
+		
+		status = ZwQueryInformationThread(ZwCurrentThread(), ThreadQuerySetWin32StartAddress, &startAddress, sizeof(ULONG64), NULL);
+		if (!NT_SUCCESS(status))
+		{
+			kprintf("[+] falconeye: Getting Thread start address failed status 0x%x\n", status);
+		}
+		else
+		{
+			// Need to open the process before calling CheckMemImageByAddress
+			status = ZwOpenProcess(&hProcess, PROCESS_ALL_ACCESS, &oa, &cid);
+			if (CheckMemImageByAddress((PVOID)startAddress, NULL))
+			{
+				kprintf("[+] falconeye: Alert: Suspicious thread %llu in process %llu and start address %p\n", 
+					(PVOID)ThreadId,
+					(PVOID)ProcessId,
+					startAddress);
+			}
+		}
+	}
 }

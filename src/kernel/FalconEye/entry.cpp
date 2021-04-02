@@ -72,6 +72,9 @@ extern "C" NTSTATUS DriverEntry(
 	// Perform ObCallback registration
 	status = FEPerformObCallbackRegistration();
 
+	// Perform Thread Create callback registration
+	status = FEPerformThreadCallbackRegistration();
+
 	// Perform LoadImage callback registration
 	status = FEPerformLoadImageCallbackRegistration();
 
@@ -111,6 +114,9 @@ void DriverUnload(
 
 	// Unregister OpenProcess Callback
 	FEPerformObCallbackUnregistration();
+
+	// Unregister Thread Callback
+	FEPerformThreadCallbackUnregistration();
 
 	//
 	// Unregister LoadImage Callback
@@ -218,6 +224,10 @@ NTSTATUS FEPerformLoadImageCallbackRegistration()
 	{
 		kprintf("[+] falconeye: Installing LoadImage callbacks failed  status 0x%x\n", status);
 		bFELoadImageCallbackInstalled = FALSE;
+	}
+	else
+	{
+		kprintf("[+] falconeye: LoadImage callback registered successfully\n");
 	}
 	return status;
 }
