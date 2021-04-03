@@ -241,15 +241,23 @@ NTSTATUS DetourNtQueueApcThread(
     _In_ PIO_STATUS_BLOCK     ApcStatusBlock,
     _In_ ULONG                ApcReserved)
 {
+    
     if (SELF_PROCESS_HANDLE != ThreadHandle) {
         ULONG callerPid, targetPid;
+
         GetActionPidsByThread(ThreadHandle, &callerPid, &targetPid);
+        
         if (callerPid != targetPid) {
-            ULONG targetTid = GetThreadIdByHandle(ThreadHandle);
-            kprintf("FalconEye: DetourNtQueueApcThread: callerPid %d targetPid %d targetTid %d ApcRoutine %p ApcContext %p.\n",
-                callerPid, targetPid, targetTid, ApcRoutine, ApcRoutineContext);
+            kprintf("FalconEye*****************************: DetourNtQueueApcThread: callerPID %llu targetPID %llu ApcRoutine %p\n", callerPid, targetPid, ApcRoutine);
+            
+            //ULONG targetTid = GetThreadIdByHandle(ThreadHandle);
+            //UNREFERENCED_PARAMETER(targetTid);
+            /*kprintf("FalconEye: DetourNtQueueApcThread: callerPid %d targetPid %d ApcRoutine %p ApcContext %p.\n",
+                callerPid, targetPid, ApcRoutine, ApcRoutineContext);*/ 
         }
+        
     }
+    
     return NtQueueApcThreadOrigPtr(ThreadHandle, ApcRoutine, ApcRoutineContext, ApcStatusBlock, ApcReserved);
 }
 
@@ -290,8 +298,10 @@ NTSTATUS DetourNtSetInformationProcess(
     if (SELF_PROCESS_HANDLE != ProcessHandle) {
         ULONG callerPid, targetPid;
         GetActionPids(ProcessHandle, &callerPid, &targetPid);
+        /*
         kprintf("FalconEye: DetourNtSetInformationProcess: callerPid %d targetPid %d InfoClass %d.\n",
             callerPid, targetPid, ProcessInformationClass);
+        */
     }
     return NtSetInformationProcessOrigPtr(ProcessHandle, ProcessInformationClass, ProcessInformation, ProcessInformationLength);
 }
@@ -425,16 +435,16 @@ PVOID GetDetourFunction(unsigned int idx)
     switch (idx) {
     case 0x3A:
         return DetourNtWriteVirtualMemory;
-    //case 0x45:
-    //    return DetourNtQueueApcThread;
+    case 0x45:
+        return DetourNtQueueApcThread;
     case 0x19: 
         return DetourNtQueryInformationProcess;
     case 0x1c: 
         return DetourNtSetInformationProcess;
     //case 0x28: 
-    //    return DetourNtMapViewOfSection;
+        //return DetourNtMapViewOfSection;
     //case 0x2a: 
-    //    return DetourNtUnmapViewOfSection;
+        //return DetourNtUnmapViewOfSection;
     case 0x52: 
         return DetourNtResumeThread;
     case 0x9e: 
