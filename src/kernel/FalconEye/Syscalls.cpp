@@ -72,31 +72,6 @@ DEF_ORIG_SYSCALL_PTR(NtUserMessageCall);
 DEF_ORIG_SYSCALL_PTR(NtUserPostThreadMessage);
 DEF_ORIG_SYSCALL_PTR(NtUserSendInput);
 
-NTSTATUS GetSyscallAddresses()
-{
-    NTSTATUS     status = STATUS_SUCCESS;
-
-    ADD_SYSCALL_ADDR(NtAddAtomEx);
-    ADD_SYSCALL_ADDR(NtWriteVirtualMemory);
-    ADD_SYSCALL_ADDR(NtSuspendThread);
-    ADD_SYSCALL_ADDR(NtMapViewOfSection);
-    ADD_SYSCALL_ADDR(NtUnmapViewOfSection);
-    ADD_SYSCALL_ADDR(NtCreateThread);
-    ADD_SYSCALL_ADDR(NtResumeThread);
-    ADD_SYSCALL_ADDR(NtQueueApcThread);
-    ADD_SYSCALL_ADDR(NtSetContextThread);
-    ADD_SYSCALL_ADDR(NtSuspendProcess);
-    ADD_SYSCALL_ADDR(NtSetInformationProcess);
-    ADD_SYSCALL_ADDR(NtConnectPort);
-    ADD_SYSCALL_ADDR(NtFlushInstructionCache);
-    ADD_SYSCALL_ADDR(NtQueryInformationProcess);
-#if 0
-    ADD_SYSCALL_ADDR(NtUserSetProp);
-    ADD_SYSCALL_ADDR(NtUserSetWindowsHookEx);
-#endif
-    return status;
-}
-
 PVOID64 FindNtBase(PVOID64 start)
 {
     UCHAR* It = (UCHAR*)start;
@@ -245,8 +220,9 @@ NTSTATUS DetourNtQueueApcThread(
         ULONG callerPid = 0, targetPid = 0;
         GetActionPidsByThread(ThreadHandle, &callerPid, &targetPid);
         if (callerPid != targetPid) {
-            kprintf("FalconEye: DetourNtQueueApcThread: callerPid %d targetPid %d ApcRoutine %p.\n",
-                callerPid, targetPid, ApcRoutine);
+            ULONG targetTid = GetThreadIdByHandle(ThreadHandle);
+            kprintf("FalconEye: DetourNtQueueApcThread: callerPid %d targetPid %d targetTid %d ApcRoutine %p ApcContext %p.\n",
+                callerPid, targetPid, targetTid, ApcRoutine, ApcRoutineContext);
         }
     }
     return NtQueueApcThreadOrigPtr(ThreadHandle, ApcRoutine, ApcRoutineContext, ApcStatusBlock, ApcReserved);
@@ -289,8 +265,10 @@ NTSTATUS DetourNtSetInformationProcess(
     if (SELF_PROCESS_HANDLE != ProcessHandle) {
         ULONG callerPid, targetPid;
         GetActionPids(ProcessHandle, &callerPid, &targetPid);
+        /*
         kprintf("FalconEye: DetourNtSetInformationProcess: callerPid %d targetPid %d InfoClass %d.\n",
             callerPid, targetPid, ProcessInformationClass);
+        */
     }
     return NtSetInformationProcessOrigPtr(ProcessHandle, ProcessInformationClass, ProcessInformation, ProcessInformationLength);
 }
@@ -354,6 +332,70 @@ BOOL DetourNtUserSetProp(
     return NtUserSetPropOrigPtr(hWnd, Atom, Data);
 }
 
+HHOOK DetourNtUserSetWindowsHookEx(
+    HINSTANCE Mod,
+    PUNICODE_STRING UnsafeModuleName,
+    DWORD ThreadId,
+    int HookId,
+    HOOKPROC HookProc,
+    BOOL Ansi
+)
+{
+    kprintf("FalconEye: DetourNtUserSetWindowsHookEx: hMod %p.\n", Mod);
+    return NtUserSetWindowsHookExOrigPtr(Mod, UnsafeModuleName, ThreadId, HookId, HookProc, Ansi);
+}
+
+LONG_PTR DetourNtUserSetWindowLongPtr(
+    HWND hWnd,
+    DWORD Index,
+    LONG_PTR NewValue,
+    BOOL Ansi)
+{
+    kprintf("FalconEye: DetourNtUserSetWindowLongPtr: hMod %p.\n", hWnd);
+    return NtUserSetWindowLongPtrOrigPtr(hWnd, Index, NewValue, Ansi);
+}
+
+BOOL DetourNtUserPostMessage(
+    HWND hWnd,
+    UINT Msg,
+    WPARAM wParam,
+    LPARAM lParam)
+{
+    kprintf("FalconEye: DetourNtUserPostMessage: hMod %p.\n", hWnd);
+    return NtUserPostMessageOrigPtr(hWnd, Msg, wParam, lParam);
+}
+
+NTSTATUS DetourNtUserMessageCall(
+    HWND hWnd,
+    UINT msg,
+    WPARAM wParam,
+    LPARAM lParam,
+    ULONG_PTR ResultInfo,
+    DWORD dwType,
+    BOOLEAN bAnsi)
+{
+    kprintf("FalconEye: DetourNtUserMessageCall: hWnd %p.\n", hWnd);
+    return NtUserMessageCallOrigPtr(hWnd, msg, wParam, lParam, ResultInfo, dwType, bAnsi);
+}
+
+BOOL DetourNtUserPostThreadMessage(
+    DWORD idThread,
+    UINT Msg,
+    WPARAM wParam,
+    LPARAM lParam)
+{
+    kprintf("FalconEye: DetourNtUserPostThreadMessage: idThread %d.\n", idThread);
+    return NtUserPostThreadMessageOrigPtr(idThread, Msg, wParam, lParam);
+}
+
+ULONG DetourNtUserSendInput(
+    IN UINT cInputs, // number of input in the array
+    IN LPINPUT pInputs, // array of inputs
+    IN int cbSize)
+{
+    kprintf("FalconEye: DetourNtUserSendInput: cInputs %d.\n", cInputs);
+    return NtUserSendInputOrigPtr(cInputs, pInputs, cbSize);
+}
 
 void SaveOriginalFunctionAddress(
     unsigned int SystemCallIndex,
@@ -412,6 +454,18 @@ PVOID GetDetourFunction(unsigned int idx)
         return DetourNtCreateThread;
     case 0x104F:
         return DetourNtUserSetProp;
+    case 0x108C:
+        return DetourNtUserSetWindowsHookEx;
+    case 0x14E9:
+        return DetourNtUserSetWindowLongPtr;
+    case 0x1012: 
+        return DetourNtUserPostMessage;
+    case 0x100A:
+        return DetourNtUserMessageCall;
+    case 0x1061:
+        return DetourNtUserPostThreadMessage;
+    case 0x1082:
+        return DetourNtUserSendInput;
     default:
         return NULL;
     }
