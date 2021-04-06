@@ -36,7 +36,6 @@
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="FalconEye.rc" />
-    <Inf Include="FalconEye.inf" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{48F7320F-5A92-474E-8C14-17903096D9AE}</ProjectGuid>
@@ -68,6 +67,7 @@
     <PlatformToolset>WindowsKernelModeDriver10.0</PlatformToolset>
     <ConfigurationType>Driver</ConfigurationType>
     <DriverType>WDM</DriverType>
+    <Driver_SpectreMitigation>false</Driver_SpectreMitigation>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <TargetVersion>Windows10</TargetVersion>
@@ -153,6 +153,9 @@
       <AdditionalDependencies>fltmgr.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalOptions>/INTEGRITYCHECK %(AdditionalOptions)</AdditionalOptions>
     </Link>
+    <ClCompile>
+      <DisableSpecificWarnings>4996;4748;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+    </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <Link>

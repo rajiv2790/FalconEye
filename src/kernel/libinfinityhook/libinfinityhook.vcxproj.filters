@@ -25,11 +25,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <Inf Include="libinfinityhook.inf">
-      <Filter>Driver Files</Filter>
-    </Inf>
-  </ItemGroup>
-  <ItemGroup>
     <ClCompile Include="infinityhook.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
