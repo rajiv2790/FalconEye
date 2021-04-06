@@ -1,3 +1,3 @@
 #pragma once
-BOOLEAN CheckMemImageByAddress(PVOID ptr);
+BOOLEAN CheckMemImageByAddress(PVOID ptr, HANDLE pid);
 VOID TestMemImageByAddress(PVOID addr);

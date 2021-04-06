@@ -329,6 +329,7 @@ BOOL DetourNtUserSetProp(
     _In_ HANDLE Data)
 {
     kprintf("FalconEye: DetourNtUserSetProp: hWnd %p.\n", hWnd);
+    AddNtUserSetPropEntry(hWnd, Atom, Data);
     return NtUserSetPropOrigPtr(hWnd, Atom, Data);
 }
 
@@ -352,6 +353,7 @@ LONG_PTR DetourNtUserSetWindowLongPtr(
     BOOL Ansi)
 {
     kprintf("FalconEye: DetourNtUserSetWindowLongPtr: hMod %p.\n", hWnd);
+    AddNtUserSetWindowLongPtrEntry(hWnd, Index, NewValue);
     return NtUserSetWindowLongPtrOrigPtr(hWnd, Index, NewValue, Ansi);
 }
 

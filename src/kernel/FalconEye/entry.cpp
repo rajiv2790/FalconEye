@@ -66,11 +66,15 @@ extern "C" NTSTATUS DriverEntry(
 
 	// ObCallbacks are used to get a callback when a process creates/
 	// duplicates a handle to another process. Both "attacker" process, and
-	// "victim" process are stored in OpenProcessMap, if the attacker process
-	// 	opens the victim with certain permissions.
+	// "victim" process are stored in OpenProcessTable, if the attacker process
+	// 	opens the victim with certain permissions. However, the OpenProcessTable
+	// is referenced only via attacker Pid.
 
 	// Perform ObCallback registration
 	status = FEPerformObCallbackRegistration();
+
+	// Perform Thread Create callback registration
+	status = FEPerformThreadCallbackRegistration();
 
 	// Perform LoadImage callback registration
 	status = FEPerformLoadImageCallbackRegistration();
@@ -109,8 +113,15 @@ void DriverUnload(
 {
 	UNREFERENCED_PARAMETER(DriverObject);
 
+	//
+	// Unload infinity hook gracefully.
+	IfhRelease();
+
 	// Unregister OpenProcess Callback
 	FEPerformObCallbackUnregistration();
+
+	// Unregister Thread Callback
+	FEPerformThreadCallbackUnregistration();
 
 	//
 	// Unregister LoadImage Callback
@@ -123,7 +134,6 @@ void DriverUnload(
 	//
 	// Cleanup OpenProcessTable
 	//
-
 	PVOID node;
 	POpenProcessNode tempNode;
 	
@@ -145,10 +155,6 @@ void DriverUnload(
 		kprintf("[+] falconeye: Deleting element: aPID= %llu vPID= %llu\n", aPID, vPID);
 	}
 	KeReleaseSpinLock(&FeOptLock.lock, oldIrql);
-	
-	//
-	// Unload infinity hook gracefully.
-	IfhRelease();
 
 	kprintf("\n[!] falconeye: Unloading... BYE!\n");
 }
@@ -170,7 +176,18 @@ void __fastcall SyscallStub(
 	void** DetourAddress = (void**)GetDetourFunction(SystemCallIndex);
 	if (DetourAddress) {
 		//kprintf("[+] FalconEye: SYSCALL %lu: DetourAddr 0x%p \n", SystemCallIndex, DetourAddress);
-		*SystemCallFunction = DetourAddress;
+		// If the aPID is present in OpenProcessTable, only then go through detour
+		HANDLE aPID = PsGetCurrentProcessId();
+		OpenProcessNode node = { aPID, NULL };
+		PVOID pFoundEntry = 0;
+		KIRQL oldIrql;
+		KeAcquireSpinLock(&FeOptLock.lock, &oldIrql);
+		pFoundEntry = RtlLookupElementGenericTable(&OpenProcessTable, &node);
+		KeReleaseSpinLock(&FeOptLock.lock, oldIrql);
+		if (pFoundEntry)
+		{
+			*SystemCallFunction = DetourAddress;
+		}
 	}
 }
 
@@ -218,6 +235,10 @@ NTSTATUS FEPerformLoadImageCallbackRegistration()
 	{
 		kprintf("[+] falconeye: Installing LoadImage callbacks failed  status 0x%x\n", status);
 		bFELoadImageCallbackInstalled = FALSE;
+	}
+	else
+	{
+		kprintf("[+] falconeye: LoadImage callback registered successfully\n");
 	}
 	return status;
 }
@@ -353,6 +374,8 @@ RTL_GENERIC_COMPARE_RESULTS OpenProcessNodeCompare(
 	{
 		return GenericGreaterThan;
 	}
+	return GenericEqual;
+	/*
 	else
 	{
 		if ((ULONG64)lhs->vPID < (ULONG64)rhs->vPID)
@@ -365,6 +388,7 @@ RTL_GENERIC_COMPARE_RESULTS OpenProcessNodeCompare(
 		}
 		return GenericEqual;
 	}
+	*/
 }
 
 /*

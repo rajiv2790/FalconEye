@@ -2,6 +2,8 @@
 #define NTWVM_BUFFER_SIZE 512
 #define NTUNMVS_BUFFER_SIZE     512
 #define NTST_BUFFER_SIZE        512
+#define NTUSERSWLP_BUFFER_SIZE  1024
+#define NTUSERSP_BUFFER_SIZE    1024
 
 #define NTWVM_DATA_COPY_SIZE    300
 
@@ -26,6 +28,18 @@ typedef struct _NtSTEntry {
     ULONG   targetTid;
 }NtSTEntry;
 
+typedef struct _NtUserSWLPEntry {
+    HWND hWnd;
+    DWORD Index;
+    LONG_PTR NewValue;
+}NtUserSWLPEntry;
+
+typedef struct _NtUserSPEntry {
+    HWND hWnd;
+    ATOM Atom;
+    HANDLE Data;
+}NtUserSPEntry;
+
 
 BOOLEAN InitActionHistory();
 BOOLEAN AddNtWriteVirtualMemoryEntry(
@@ -46,3 +60,18 @@ BOOLEAN AddNtSuspendThreadEntry(
     ULONG   targetPid,
     ULONG   targetTid
 );
+
+BOOLEAN AddNtUserSetWindowLongPtrEntry(
+    HWND hWnd,
+    DWORD Index,
+    LONG_PTR NewValue
+);
+NtUserSWLPEntry* FindNtUserSetWindowLongPtrEntry(HWND hWnd);
+
+BOOLEAN AddNtUserSetPropEntry(
+    HWND hWnd,
+    ATOM Atom,
+    HANDLE Data
+);
+
+NtUserSPEntry* FindNtSetWindowLongPtrEntry(HWND hWnd);

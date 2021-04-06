@@ -67,12 +67,6 @@ void __fastcall SyscallStub(
 	_In_ unsigned int SystemCallIndex, 
 	_Inout_ void** SystemCallFunction);
 
-OB_PREOP_CALLBACK_STATUS
-FEOpenProcessCallback(
-	_In_ PVOID RegistrationContext,
-	_Inout_ POB_PRE_OPERATION_INFORMATION PreInfo
-);
-
 NTSTATUS FEPerformLoadImageCallbackRegistration();
 
 VOID
@@ -145,6 +139,14 @@ extern "C" NTSTATUS ZwQueryInformationProcess(
 	_Out_     PVOID            ProcessInformation,
 	_In_      ULONG            ProcessInformationLength,
 	_Out_opt_ PULONG           ReturnLength
+);
+
+extern "C" NTSTATUS ZwQueryInformationThread(
+	IN HANDLE ThreadHandle,
+	IN THREADINFOCLASS ThreadInformationClass,
+	OUT PVOID ThreadInformation,
+	IN ULONG ThreadInformationLength,
+	OUT PULONG ReturnLength OPTIONAL
 );
 
 ///

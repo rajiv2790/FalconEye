@@ -1,5 +1,6 @@
 #include <excpt.h>
 #include "stdafx.h"
+#include "NtDefs.h"
 #include "ActionHistory.h"
 
 NtWVMEntry* NtWVMBuffer = NULL;
@@ -13,6 +14,14 @@ ERESOURCE   NtUnMVSLock;
 NtSTEntry*  NtSTBuffer = NULL;
 SIZE_T      freeNtSTIdx = 0;
 ERESOURCE   NtSTLock;
+
+NtUserSWLPEntry* NtUserSWLPBuffer = NULL;
+SIZE_T      freeNtUserSWLPIdx = 0;
+ERESOURCE   NtUserSWLPLock;
+
+NtUserSPEntry* NtUserSPBuffer = NULL;
+SIZE_T      freeNtUserSPIdx = 0;
+ERESOURCE   NtUserSPLock;
 
 extern "C" {
     NTSTATUS ReadWVMData(PVOID localBuffer, ULONG bufferSize, PCHAR targetBuffer);
@@ -62,12 +71,42 @@ BOOLEAN InitNtSTHistory()
     return TRUE;
 }
 
+BOOLEAN InitNtUserSWLPHistory()
+{
+    NtUserSWLPBuffer = (NtUserSWLPEntry*)ExAllocatePoolWithTag(
+        NonPagedPool,
+        NTUSERSWLP_BUFFER_SIZE * sizeof(NtUserSWLPEntry),
+        ActionHistoryTag
+    );
+    if (NULL == NtUserSWLPBuffer) {
+        return FALSE;
+    }
+    ExInitializeResourceLite(&NtUserSWLPLock);
+    return TRUE;
+}
+
+BOOLEAN InitNtUserSPHistory()
+{
+    NtUserSPBuffer = (NtUserSPEntry*)ExAllocatePoolWithTag(
+        NonPagedPool,
+        NTUSERSWLP_BUFFER_SIZE * sizeof(NtUserSPEntry),
+        ActionHistoryTag
+    );
+    if (NULL == NtUserSWLPBuffer) {
+        return FALSE;
+    }
+    ExInitializeResourceLite(&NtUserSWLPLock);
+    return TRUE;
+}
+
 
 BOOLEAN InitActionHistory()
 {
     InitNtWVMHistory();
     InitNtUnMVSHistory();
     InitNtSTHistory();
+    InitNtUserSWLPHistory();
+    InitNtUserSPHistory();
     return TRUE;
 }
 
@@ -193,5 +232,85 @@ NtSTEntry* FindNtSuspendThreadEntry(ULONG callerPid, ULONG targetPid)
         }
     }
     ExReleaseResourceLite(&NtSTLock);
+    return entry;
+}
+
+BOOLEAN AddNtUserSetWindowLongPtrEntry(
+    HWND hWnd,
+    DWORD Index,
+    LONG_PTR NewValue
+)
+{
+    if (FALSE == ExAcquireResourceExclusiveLite(&NtUserSWLPLock, TRUE)) {
+        return FALSE;
+    }
+    NtUserSWLPBuffer[freeNtUserSWLPIdx] = { hWnd, Index, NewValue };
+    freeNtUserSWLPIdx = (freeNtUserSWLPIdx + 1) % NTUSERSWLP_BUFFER_SIZE;
+    ExReleaseResourceLite(&NtUserSWLPLock);
+    return TRUE;
+}
+
+// Caller must deallocate NtUserSWLPEntry
+NtUserSWLPEntry* FindNtUserSetWindowLongPtrEntry(HWND hWnd)
+{
+    NtUserSWLPEntry* entry = NULL;
+    if (FALSE == ExAcquireResourceExclusiveLite(&NtUserSWLPLock, TRUE)) {
+        return FALSE;
+    }
+    entry = (NtUserSWLPEntry*)ExAllocatePoolWithTag(
+        NonPagedPool,
+        sizeof(NtUserSWLPEntry),
+        ActionHistoryTag);
+    if (NULL == entry) {
+        ExReleaseResourceLite(&NtUserSWLPLock);
+        return FALSE;
+    }
+    for (auto i = 0; i < NTUSERSWLP_BUFFER_SIZE; i++) {
+        if (hWnd == NtUserSWLPBuffer[i].hWnd) {
+            RtlCopyMemory(entry, &NtUserSWLPBuffer[i], sizeof(NtUserSWLPEntry));
+            break;
+        }
+    }
+    ExReleaseResourceLite(&NtUserSWLPLock);
+    return entry;
+}
+
+BOOLEAN AddNtUserSetPropEntry(
+    HWND hWnd,
+    ATOM Atom,
+    HANDLE Data
+)
+{
+    if (FALSE == ExAcquireResourceExclusiveLite(&NtUserSPLock, TRUE)) {
+        return FALSE;
+    }
+    NtUserSPBuffer[freeNtUserSPIdx] = { hWnd, Atom, Data };
+    freeNtUserSPIdx = (freeNtUserSPIdx + 1) % NTUSERSP_BUFFER_SIZE;
+    ExReleaseResourceLite(&NtUserSPLock);
+    return TRUE;
+}
+
+// Caller must deallocate NtUserSPEntry
+NtUserSPEntry* FindNtSetWindowLongPtrEntry(HWND hWnd)
+{
+    NtUserSPEntry* entry = NULL;
+    if (FALSE == ExAcquireResourceExclusiveLite(&NtUserSPLock, TRUE)) {
+        return FALSE;
+    }
+    entry = (NtUserSPEntry*)ExAllocatePoolWithTag(
+        NonPagedPool,
+        sizeof(NtUserSPEntry),
+        ActionHistoryTag);
+    if (NULL == entry) {
+        ExReleaseResourceLite(&NtUserSPLock);
+        return FALSE;
+    }
+    for (auto i = 0; i < NTUSERSP_BUFFER_SIZE; i++) {
+        if (hWnd == NtUserSPBuffer[i].hWnd) {
+            RtlCopyMemory(entry, &NtUserSPBuffer[i], sizeof(NtUserSPEntry));
+            break;
+        }
+    }
+    ExReleaseResourceLite(&NtUserSPLock);
     return entry;
 }
