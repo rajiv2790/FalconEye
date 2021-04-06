@@ -89,13 +89,13 @@ BOOLEAN InitNtUserSPHistory()
 {
     NtUserSPBuffer = (NtUserSPEntry*)ExAllocatePoolWithTag(
         NonPagedPool,
-        NTUSERSWLP_BUFFER_SIZE * sizeof(NtUserSPEntry),
+        NTUSERSP_BUFFER_SIZE * sizeof(NtUserSPEntry),
         ActionHistoryTag
     );
-    if (NULL == NtUserSWLPBuffer) {
+    if (NULL == NtUserSPBuffer) {
         return FALSE;
     }
-    ExInitializeResourceLite(&NtUserSWLPLock);
+    ExInitializeResourceLite(&NtUserSPLock);
     return TRUE;
 }
 

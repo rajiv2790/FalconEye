@@ -39,6 +39,7 @@ DEF_USTR_SYSCALL(NtSetInformationProcess);
 DEF_USTR_SYSCALL(NtConnectPort);
 DEF_USTR_SYSCALL(NtFlushInstructionCache);
 DEF_USTR_SYSCALL(NtQueryInformationProcess);
+DEF_USTR_SYSCALL(NtUpdateWnfStateData);
 
 DEF_USTR_SYSCALL(NtUserSetProp);
 DEF_USTR_SYSCALL(NtUserSetWindowsHookEx);
@@ -63,6 +64,7 @@ DEF_ORIG_SYSCALL_PTR(NtSetInformationProcess);
 DEF_ORIG_SYSCALL_PTR(NtConnectPort);
 DEF_ORIG_SYSCALL_PTR(NtFlushInstructionCache);
 DEF_ORIG_SYSCALL_PTR(NtQueryInformationProcess);
+DEF_ORIG_SYSCALL_PTR(NtUpdateWnfStateData);
 
 DEF_ORIG_SYSCALL_PTR(NtUserSetProp);
 DEF_ORIG_SYSCALL_PTR(NtUserSetWindowsHookEx);
@@ -219,11 +221,8 @@ NTSTATUS DetourNtQueueApcThread(
     if (SELF_PROCESS_HANDLE != ThreadHandle) {
         ULONG callerPid = 0, targetPid = 0;
         GetActionPidsByThread(ThreadHandle, &callerPid, &targetPid);
-        if (callerPid != targetPid) {
-            ULONG targetTid = GetThreadIdByHandle(ThreadHandle);
-            kprintf("FalconEye: DetourNtQueueApcThread: callerPid %d targetPid %d targetTid %d ApcRoutine %p ApcContext %p.\n",
-                callerPid, targetPid, targetTid, ApcRoutine, ApcRoutineContext);
-        }
+        kprintf("FalconEye: DetourNtQueueApcThread: callerPid %d targetPid %d targetTid %d ApcRoutine %p \n",
+            callerPid, targetPid, ApcRoutine);
     }
     return NtQueueApcThreadOrigPtr(ThreadHandle, ApcRoutine, ApcRoutineContext, ApcStatusBlock, ApcReserved);
 }
@@ -323,6 +322,19 @@ NTSTATUS DetourNtQueryInformationProcess(
     return NtQueryInformationProcessOrigPtr(ProcessHandle, ProcessInformationClass, ProcessInformation, ProcessInformationLength, ReturnLength);
 }
 
+NTSTATUS DetourNtUpdateWnfStateData(
+    PVOID StateName,
+    VOID* Buffer,
+    ULONG Length,
+    PCWNF_TYPE_ID TypeId,
+    VOID* ExplicitScope,
+    WNF_CHANGE_STAMP MatchingChangeStamp,
+    LOGICAL CheckStamp)
+{
+    kprintf("FalconEye: DetourNtUpdateWnfStateData: Buffer %p Length %d.\n", Buffer, Length);
+    return NtUpdateWnfStateDataOrigPtr(StateName, Buffer, Length, TypeId, ExplicitScope, MatchingChangeStamp, CheckStamp);
+}
+
 BOOL DetourNtUserSetProp(
     _In_ HWND hWnd,
     _In_ ATOM Atom,
@@ -416,6 +428,7 @@ void SaveOriginalFunctionAddress(
     SAVE_FN_ADDR(0x1b5, NtSuspendProcess);
     SAVE_FN_ADDR(0xe2, NtFlushInstructionCache);
     SAVE_FN_ADDR(0x4e, NtCreateThread);
+    SAVE_FN_ADDR(0x1CE, NtUpdateWnfStateData);
     SAVE_FN_ADDR(0x104F, NtUserSetProp);
     SAVE_FN_ADDR(0x108C, NtUserSetWindowsHookEx);
     SAVE_FN_ADDR(0x14E9, NtUserSetWindowLongPtr);
@@ -454,6 +467,8 @@ PVOID GetDetourFunction(unsigned int idx)
         return DetourNtFlushInstructionCache;
     case 0x4e:
         return DetourNtCreateThread;
+    case 0x1CE:
+        return DetourNtUpdateWnfStateData;
     case 0x104F:
         return DetourNtUserSetProp;
     case 0x108C:

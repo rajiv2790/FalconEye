@@ -78,3 +78,11 @@ typedef struct tagINPUT {
         HARDWAREINPUT   hi;
     } DUMMYUNIONNAME;
 } INPUT, * PINPUT, FAR* LPINPUT;
+
+typedef struct _WNF_TYPE_ID {
+    GUID                              TypeId;
+} WNF_TYPE_ID, * PWNF_TYPE_ID;
+
+typedef const WNF_TYPE_ID* PCWNF_TYPE_ID;
+
+typedef ULONG WNF_CHANGE_STAMP, * PWNF_CHANGE_STAMP;

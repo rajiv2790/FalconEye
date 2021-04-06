@@ -137,6 +137,15 @@ typedef ULONG(*NtUserSendInput_t)(
 	IN LPINPUT pInputs, // array of inputs
 	IN int cbSize);
 
+typedef NTSTATUS(*NtUpdateWnfStateData_t)(
+	PVOID StateName,
+	VOID* Buffer,
+	ULONG Length,
+	PCWNF_TYPE_ID TypeId,
+	VOID* ExplicitScope,
+	WNF_CHANGE_STAMP MatchingChangeStamp,
+	LOGICAL CheckStamp);
+
 // exports
 extern PVOID64 NtBaseAddress;
 NTSTATUS GetSyscallAddresses();
