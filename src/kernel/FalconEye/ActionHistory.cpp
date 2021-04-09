@@ -131,22 +131,51 @@ BOOLEAN AddNtWriteVirtualMemoryEntry(
 }
 
 // Caller must deallocate NtWVMEntry
-NtWVMEntry* FindNtWriteVirtualMemoryEntry(ULONG callerPid, ULONG targetPid)
+// Find by caller pid and target pid
+NtWVMEntry* FindNtWriteVirtualMemoryEntry(ULONG64 callerPid, ULONG targetPid)
 {
     NtWVMEntry* entry = NULL;
     if (FALSE == ExAcquireResourceExclusiveLite(&NtWVMLock, TRUE)) {
-        return FALSE;
+        return NULL;
     }
-    entry = (NtWVMEntry*)ExAllocatePoolWithTag(
-        NonPagedPool,
-        sizeof(NtWVMEntry),
-        ActionHistoryTag);
-    if (NULL == entry) {
-        ExReleaseResourceLite(&NtWVMLock);
-        return FALSE;
-    }
+
     for (auto i = 0; i < NTWVM_BUFFER_SIZE; i++) {
         if (callerPid == NtWVMBuffer[i].callerPid && targetPid == NtWVMBuffer[i].targetPid) {
+            entry = (NtWVMEntry*)ExAllocatePoolWithTag(
+                NonPagedPool,
+                sizeof(NtWVMEntry),
+                ActionHistoryTag);
+            if (NULL == entry) {
+                ExReleaseResourceLite(&NtWVMLock);
+                return NULL;
+            }
+            RtlCopyMemory(entry, &NtWVMBuffer[i], sizeof(NtWVMEntry));
+            break;
+        }
+    }
+    ExReleaseResourceLite(&NtWVMLock);
+    return entry;
+}
+
+// Caller must deallocate NtWVMEntry
+// Find by caller pid and target address
+NtWVMEntry* FindNtWriteVirtualMemoryEntryByAddress(ULONG64 callerPid, PVOID baseAddress)
+{
+    NtWVMEntry* entry = NULL;
+    if (FALSE == ExAcquireResourceExclusiveLite(&NtWVMLock, TRUE)) {
+        return NULL;
+    }
+
+    for (auto i = 0; i < NTWVM_BUFFER_SIZE; i++) {
+        if (callerPid == NtWVMBuffer[i].callerPid && baseAddress == NtWVMBuffer[i].targetAddr) {
+            entry = (NtWVMEntry*)ExAllocatePoolWithTag(
+                NonPagedPool,
+                sizeof(NtWVMEntry),
+                ActionHistoryTag);
+            if (NULL == entry) {
+                ExReleaseResourceLite(&NtWVMLock);
+                return NULL;
+            }
             RtlCopyMemory(entry, &NtWVMBuffer[i], sizeof(NtWVMEntry));
             break;
         }
@@ -175,18 +204,19 @@ NtUnMVSEntry* FindNtUnmapViewOfSectionEntry(ULONG callerPid, ULONG targetPid)
 {
     NtUnMVSEntry* entry = NULL;
     if (FALSE == ExAcquireResourceExclusiveLite(&NtUnMVSLock, TRUE)) {
-        return FALSE;
+        return NULL;
     }
-    entry = (NtUnMVSEntry*)ExAllocatePoolWithTag(
-        NonPagedPool,
-        sizeof(NtUnMVSEntry),
-        ActionHistoryTag);
-    if (NULL == entry) {
-        ExReleaseResourceLite(&NtUnMVSLock);
-        return FALSE;
-    }
+
     for (auto i = 0; i < NTUNMVS_BUFFER_SIZE; i++) {
         if (callerPid == NtUnMVSBuffer[i].callerPid && targetPid == NtUnMVSBuffer[i].targetPid) {
+            entry = (NtUnMVSEntry*)ExAllocatePoolWithTag(
+                NonPagedPool,
+                sizeof(NtUnMVSEntry),
+                ActionHistoryTag);
+            if (NULL == entry) {
+                ExReleaseResourceLite(&NtUnMVSLock);
+                return NULL;
+            }
             RtlCopyMemory(entry, &NtUnMVSBuffer[i], sizeof(NtUnMVSEntry));
             break;
         }
@@ -215,18 +245,19 @@ NtSTEntry* FindNtSuspendThreadEntry(ULONG callerPid, ULONG targetPid)
 {
     NtSTEntry* entry = NULL;
     if (FALSE == ExAcquireResourceExclusiveLite(&NtSTLock, TRUE)) {
-        return FALSE;
+        return NULL;
     }
-    entry = (NtSTEntry*)ExAllocatePoolWithTag(
-        NonPagedPool,
-        sizeof(NtSTEntry),
-        ActionHistoryTag);
-    if (NULL == entry) {
-        ExReleaseResourceLite(&NtSTLock);
-        return FALSE;
-    }
+
     for (auto i = 0; i < NTST_BUFFER_SIZE; i++) {
         if (callerPid == NtSTBuffer[i].callerPid && targetPid == NtSTBuffer[i].targetPid) {
+            entry = (NtSTEntry*)ExAllocatePoolWithTag(
+                NonPagedPool,
+                sizeof(NtSTEntry),
+                ActionHistoryTag);
+            if (NULL == entry) {
+                ExReleaseResourceLite(&NtSTLock);
+                return NULL;
+            }
             RtlCopyMemory(entry, &NtSTBuffer[i], sizeof(NtSTEntry));
             break;
         }
@@ -255,18 +286,19 @@ NtUserSWLPEntry* FindNtUserSetWindowLongPtrEntry(HWND hWnd)
 {
     NtUserSWLPEntry* entry = NULL;
     if (FALSE == ExAcquireResourceExclusiveLite(&NtUserSWLPLock, TRUE)) {
-        return FALSE;
+        return NULL;
     }
-    entry = (NtUserSWLPEntry*)ExAllocatePoolWithTag(
-        NonPagedPool,
-        sizeof(NtUserSWLPEntry),
-        ActionHistoryTag);
-    if (NULL == entry) {
-        ExReleaseResourceLite(&NtUserSWLPLock);
-        return FALSE;
-    }
+
     for (auto i = 0; i < NTUSERSWLP_BUFFER_SIZE; i++) {
         if (hWnd == NtUserSWLPBuffer[i].hWnd) {
+            entry = (NtUserSWLPEntry*)ExAllocatePoolWithTag(
+                NonPagedPool,
+                sizeof(NtUserSWLPEntry),
+                ActionHistoryTag);
+            if (NULL == entry) {
+                ExReleaseResourceLite(&NtUserSWLPLock);
+                return NULL;
+            }
             RtlCopyMemory(entry, &NtUserSWLPBuffer[i], sizeof(NtUserSWLPEntry));
             break;
         }
@@ -295,18 +327,19 @@ NtUserSPEntry* FindNtSetWindowLongPtrEntry(HWND hWnd)
 {
     NtUserSPEntry* entry = NULL;
     if (FALSE == ExAcquireResourceExclusiveLite(&NtUserSPLock, TRUE)) {
-        return FALSE;
+        return NULL;
     }
-    entry = (NtUserSPEntry*)ExAllocatePoolWithTag(
-        NonPagedPool,
-        sizeof(NtUserSPEntry),
-        ActionHistoryTag);
-    if (NULL == entry) {
-        ExReleaseResourceLite(&NtUserSPLock);
-        return FALSE;
-    }
+
     for (auto i = 0; i < NTUSERSP_BUFFER_SIZE; i++) {
         if (hWnd == NtUserSPBuffer[i].hWnd) {
+            entry = (NtUserSPEntry*)ExAllocatePoolWithTag(
+                NonPagedPool,
+                sizeof(NtUserSPEntry),
+                ActionHistoryTag);
+            if (NULL == entry) {
+                ExReleaseResourceLite(&NtUserSPLock);
+                return NULL;
+            }
             RtlCopyMemory(entry, &NtUserSPBuffer[i], sizeof(NtUserSPEntry));
             break;
         }

@@ -115,6 +115,7 @@ NTSTATUS DetourNtWriteVirtualMemory(
         //TestMemImageByAddress(Buffer);
         ULONG callerPid, targetPid;
         GetActionPids(ProcessHandle, &callerPid, &targetPid);
+        //kprintf("FalconEye: DetourNtWriteVirtualMemory: CallerPID %d targetPID %d\n", callerPid, targetPid);
         AddNtWriteVirtualMemoryEntry(callerPid, targetPid, BaseAddress, Buffer, NumberOfBytesToWrite);
     }
     return NtWriteVirtualMemoryOrigPtr(ProcessHandle, BaseAddress, Buffer, NumberOfBytesToWrite, NumberOfBytesWritten);
@@ -221,7 +222,7 @@ NTSTATUS DetourNtQueueApcThread(
     if (SELF_PROCESS_HANDLE != ThreadHandle) {
         ULONG callerPid = 0, targetPid = 0;
         GetActionPidsByThread(ThreadHandle, &callerPid, &targetPid);
-        kprintf("FalconEye: DetourNtQueueApcThread: callerPid %d targetPid %d targetTid %d ApcRoutine %p \n",
+        kprintf("FalconEye: DetourNtQueueApcThread: callerPid %d targetPid %d ApcRoutine %p \n",
             callerPid, targetPid, ApcRoutine);
     }
     return NtQueueApcThreadOrigPtr(ThreadHandle, ApcRoutine, ApcRoutineContext, ApcStatusBlock, ApcReserved);
@@ -340,7 +341,25 @@ BOOL DetourNtUserSetProp(
     _In_ ATOM Atom,
     _In_ HANDLE Data)
 {
-    kprintf("FalconEye: DetourNtUserSetProp: hWnd %p.\n", hWnd);
+    HANDLE currentPID = PsGetCurrentProcessId();
+    NtWVMEntry* entry = FindNtWriteVirtualMemoryEntryByAddress((ULONG64)currentPID, (PVOID)Data);
+    if (entry)
+    {
+        UINT64 payloadAddress = 0;
+        RtlCopyMemory(&payloadAddress, &entry->initialData[24], sizeof(UINT64));
+        if (CheckMemImageByAddress((PVOID)payloadAddress, (HANDLE)entry->targetPid))
+        {
+            kprintf("[+] falconeye: **************************Alert**************************: Suspected PROPagate attack: CallerPID %d TargetPID %d FloatingCode %x\n",
+                currentPID,
+                entry->targetPid,
+                payloadAddress);
+            //kprintf("FalconEye: DetourNtUserSetProp: Data %p NtWVMEntry %p TargetPid %d FloatingCode %x\n", Data, entry->targetAddr, entry->targetPid, payloadAddress);
+        }
+        
+        ExFreePool(entry);
+    }
+   
+
     AddNtUserSetPropEntry(hWnd, Atom, Data);
     return NtUserSetPropOrigPtr(hWnd, Atom, Data);
 }
@@ -473,16 +492,16 @@ PVOID GetDetourFunction(unsigned int idx)
         return DetourNtUserSetProp;
     case 0x108C:
         return DetourNtUserSetWindowsHookEx;
-    case 0x14E9:
-        return DetourNtUserSetWindowLongPtr;
-    case 0x1012: 
-        return DetourNtUserPostMessage;
-    case 0x100A:
-        return DetourNtUserMessageCall;
-    case 0x1061:
-        return DetourNtUserPostThreadMessage;
-    case 0x1082:
-        return DetourNtUserSendInput;
+    //case 0x14E9:
+        //return DetourNtUserSetWindowLongPtr;
+    //case 0x1012: 
+        //return DetourNtUserPostMessage;
+    //case 0x100A:
+        //return DetourNtUserMessageCall;
+    //case 0x1061:
+        //return DetourNtUserPostThreadMessage;
+    //case 0x1082:
+        //return DetourNtUserSendInput;
     default:
         return NULL;
     }

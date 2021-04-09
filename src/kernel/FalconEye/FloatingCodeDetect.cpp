@@ -2,23 +2,31 @@
 #include "NtDefs.h"
 #include "entry.h"
 
-BOOLEAN CheckMemImageByAddress(PVOID ptr, HANDLE pHandle)
+BOOLEAN CheckMemImageByAddress(PVOID ptr, HANDLE pid)
 {
     NTSTATUS status = STATUS_SUCCESS;
     HANDLE PHANDLE;
     MEMORY_BASIC_INFORMATION mbi = { 0 };
     SIZE_T  retSize = 0;
+    CLIENT_ID cid = { (HANDLE)pid, NULL };
+    OBJECT_ATTRIBUTES oa;
+    InitializeObjectAttributes(&oa, 0, 0, 0, 0);
+
     if (NULL == ptr) {
         return FALSE;
     }
-    if (NULL == pHandle)
+
+    // Need to get process handle before calling ZwQueryVirtualMemory
+
+    if (NULL == pid)
     {
         PHANDLE = ZwCurrentProcess();
     }
     else
     {
-        PHANDLE = pHandle;
+        status = ZwOpenProcess(&PHANDLE, PROCESS_ALL_ACCESS, &oa, &cid);
     }
+
     //kprintf("[FalconEye] : CheckMemImage for %p.\n", ptr);
     status = ZwQueryVirtualMemory(
         PHANDLE,

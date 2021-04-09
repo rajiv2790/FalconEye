@@ -161,16 +161,10 @@ VOID CreateThreadNotifyRoutineEx(
 	ULONG64 startAddress;
 	NTSTATUS status;
 
-	HANDLE hProcess;
-	CLIENT_ID cid = { (HANDLE)ProcessId, NULL };
-	OBJECT_ATTRIBUTES oa;
-	InitializeObjectAttributes(&oa, 0, 0, 0, 0);
-
 	// If Thread created as opposed to deleted
 	if (Create == TRUE)
 	{	
 		// Get the start address of the thread
-		
 		status = ZwQueryInformationThread(ZwCurrentThread(), ThreadQuerySetWin32StartAddress, &startAddress, sizeof(ULONG64), NULL);
 		if (!NT_SUCCESS(status))
 		{
@@ -178,11 +172,9 @@ VOID CreateThreadNotifyRoutineEx(
 		}
 		else
 		{
-			// Need to open the process before calling CheckMemImageByAddress
-			status = ZwOpenProcess(&hProcess, PROCESS_ALL_ACCESS, &oa, &cid);
 			if (CheckMemImageByAddress((PVOID)startAddress, NULL))
 			{
-				kprintf("[+] falconeye: Alert: Suspicious thread %llu in process %llu and start address %p\n", 
+				kprintf("[+] falconeye: **************************Alert**************************: Suspicious thread %llu in process %llu and start address %p\n", 
 					(PVOID)ThreadId,
 					(PVOID)ProcessId,
 					startAddress);

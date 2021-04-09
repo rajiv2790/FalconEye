@@ -47,3 +47,13 @@ src/kernel/libinfinityhook/x64/Debug/libinfinityhook.tlog/Lib.command.1.tlog
 src/kernel/libinfinityhook/x64/Debug/libinfinityhook.tlog/libinfinityhook.lastbuildstate
 src/kernel/libinfinityhook/x64/Debug/mm.obj
 src/kernel/libinfinityhook/x64/Debug/stdafx.obj
+src/kernel/FalconEye/.vs/FalconEye/v16/ipch/AutoPCH/252ab83ab38e25c1/CALLBACKS.ipch
+src/kernel/FalconEye/.vs/FalconEye/v16/ipch/AutoPCH/41fb1914f40bde91/FLOATINGCODEDETECT.ipch
+*.obj
+*.ipch
+src/kernel/libinfinityhook/libinfinityhook.vcxproj.user
+src/kernel/libinfinityhook/x64/Debug/libinfinityhook.Build.CppClean.log
+*.db-shm
+*.db-wal
+*.tlog
+*.opendb

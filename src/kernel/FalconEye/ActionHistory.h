@@ -8,8 +8,8 @@
 #define NTWVM_DATA_COPY_SIZE    300
 
 typedef struct _NtWVMEntry {
-    ULONG   callerPid;
-    ULONG   targetPid;
+    ULONG64   callerPid;
+    ULONG64   targetPid;
     PVOID   targetAddr;
     PVOID   localBuffer;
     ULONG   bufferSize;
@@ -75,3 +75,6 @@ BOOLEAN AddNtUserSetPropEntry(
 );
 
 NtUserSPEntry* FindNtSetWindowLongPtrEntry(HWND hWnd);
+
+NtWVMEntry* FindNtWriteVirtualMemoryEntry(ULONG64 callerPid, PVOID baseAddress);
+NtWVMEntry* FindNtWriteVirtualMemoryEntryByAddress(ULONG64 callerPid, PVOID baseAddress);
