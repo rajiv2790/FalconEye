@@ -132,14 +132,26 @@ BOOLEAN GetActionPidsByThread(HANDLE ThreadHandle, ULONG* pCallerPid, ULONG* pTa
 
 ULONG IsKnownAPIOffset(PCHAR pAddr)
 {
-    if (pAddr == (PCHAR)kernel32Base + GLOBALADDATOMA_OFFSET
-    || pAddr == (PCHAR)kernel32Base + GLOBALADDATOMW_OFFSET
-    || pAddr == (PCHAR)kernel32Base + GLOBALADDATOMEXA_OFFSET
-    || pAddr == (PCHAR)kernel32Base + GLOBALADDATOMEXW_OFFSET) {
+    if (pAddr == (PCHAR)kernel32Base + GLOBALGETATOMA_OFFSET
+        || pAddr == (PCHAR)kernel32Base + GLOBALGETATOMW_OFFSET) {
+        kprintf("FalconEye: IsKnownAPIOffset: Addr %p matched GlobalGetAtom\n",
+            pAddr);
+        return eGlobalGetAtom;
+    }
+    else if (pAddr == (PCHAR)kernel32Base + GLOBALADDATOMA_OFFSET
+        || pAddr == (PCHAR)kernel32Base + GLOBALADDATOMW_OFFSET
+        || pAddr == (PCHAR)kernel32Base + GLOBALADDATOMEXA_OFFSET
+        || pAddr == (PCHAR)kernel32Base + GLOBALADDATOMEXW_OFFSET) {
+        kprintf("FalconEye: IsKnownAPIOffset: Addr %p matched GlobalAddAtom\n",
+            pAddr);
         return eGlobalAddAtom;
     }
     else if (pAddr == (PCHAR)kernel32Base + LOADLIBA_OFFSET
-    || pAddr == (PCHAR)kernel32Base + LOADLIBW_OFFSET) {
+        || pAddr == (PCHAR)kernel32Base + LOADLIBW_OFFSET
+        || pAddr == (PCHAR)kernel32Base + LOADLIBEXA_OFFSET
+        || pAddr == (PCHAR)kernel32Base + LOADLIBEXW_OFFSET) {
+        kprintf("FalconEye: IsKnownAPIOffset: Addr %p matched LoadLibrary\n",
+            pAddr);
         return eLoadLibrary;
     }
     return eUnknownApi;

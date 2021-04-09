@@ -112,10 +112,10 @@ NTSTATUS DetourNtWriteVirtualMemory(
     _Out_opt_ PULONG          NumberOfBytesWritten)
 {
     if (SELF_PROCESS_HANDLE != ProcessHandle) {
-        //TestMemImageByAddress(Buffer);
         ULONG callerPid, targetPid;
         GetActionPids(ProcessHandle, &callerPid, &targetPid);
-        //kprintf("FalconEye: DetourNtWriteVirtualMemory: CallerPID %d targetPID %d\n", callerPid, targetPid);
+        kprintf("FalconEye: DetourNtWriteVirtualMemory: callerPid %d targetPid %d BaseAddr %p.\n", 
+            callerPid, targetPid, BaseAddress);
         AddNtWriteVirtualMemoryEntry(callerPid, targetPid, BaseAddress, Buffer, NumberOfBytesToWrite);
     }
     return NtWriteVirtualMemoryOrigPtr(ProcessHandle, BaseAddress, Buffer, NumberOfBytesToWrite, NumberOfBytesWritten);
@@ -191,6 +191,7 @@ NTSTATUS DetourNtCreateThread(
         GetActionPids(ProcessHandle, &callerPid, &targetPid);
         kprintf("FalconEye: DetourNtCreateThread: CallerPid %d TargetPid %d.\n",
             callerPid, targetPid);
+        IsKnownAPIOffset((PCHAR)(ThreadContext->Rip));
     }
     //kprintf("FalconEye: DetourNtCreateThread: ProcessHandle %p.\n", ProcessHandle);
     return NtCreateThreadOrigPtr(ThreadHandle, DesiredAccess, ObjectAttributes, ProcessHandle, ClientId, ThreadContext, InitialTeb, CreateSuspended);
@@ -224,6 +225,11 @@ NTSTATUS DetourNtQueueApcThread(
         GetActionPidsByThread(ThreadHandle, &callerPid, &targetPid);
         kprintf("FalconEye: DetourNtQueueApcThread: callerPid %d targetPid %d ApcRoutine %p \n",
             callerPid, targetPid, ApcRoutine);
+        if (eGlobalGetAtom == IsKnownAPIOffset((PCHAR)ApcRoutine)) {
+            kprintf("[+] falconeye: **************************Alert**************************: "
+                "Possible Atombombing by Pid %d into %d with QueueApcThread for GlobalGetAtom routine %p\n",
+                callerPid, targetPid, ApcRoutine);
+        }
     }
     return NtQueueApcThreadOrigPtr(ThreadHandle, ApcRoutine, ApcRoutineContext, ApcStatusBlock, ApcReserved);
 }
@@ -407,7 +413,7 @@ NTSTATUS DetourNtUserMessageCall(
     DWORD dwType,
     BOOLEAN bAnsi)
 {
-    kprintf("FalconEye: DetourNtUserMessageCall: hWnd %p.\n", hWnd);
+    //kprintf("FalconEye: DetourNtUserMessageCall: hWnd %p.\n", hWnd);
     return NtUserMessageCallOrigPtr(hWnd, msg, wParam, lParam, ResultInfo, dwType, bAnsi);
 }
 
@@ -417,7 +423,7 @@ BOOL DetourNtUserPostThreadMessage(
     WPARAM wParam,
     LPARAM lParam)
 {
-    kprintf("FalconEye: DetourNtUserPostThreadMessage: idThread %d.\n", idThread);
+    //kprintf("FalconEye: DetourNtUserPostThreadMessage: idThread %d.\n", idThread);
     return NtUserPostThreadMessageOrigPtr(idThread, Msg, wParam, lParam);
 }
 

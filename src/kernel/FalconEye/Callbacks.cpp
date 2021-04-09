@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "entry.h"
 #include "Callbacks.h"
+#include "Helper.h"
 #include "FloatingCodeDetect.h"
 
 BOOLEAN bFEObCallbackInstalled = FALSE;
@@ -172,11 +173,22 @@ VOID CreateThreadNotifyRoutineEx(
 		}
 		else
 		{
+			kprintf("[+] falconeye: CreateThreadNotifyRoutineEx thread %llu in process %llu and start address %p\n",
+				(PVOID)ThreadId,
+				(PVOID)ProcessId,
+				startAddress);
 			if (CheckMemImageByAddress((PVOID)startAddress, NULL))
 			{
 				kprintf("[+] falconeye: **************************Alert**************************: Suspicious thread %llu in process %llu and start address %p\n", 
 					(PVOID)ThreadId,
 					(PVOID)ProcessId,
+					startAddress);
+			}
+			if (eLoadLibrary == IsKnownAPIOffset((PCHAR)startAddress)) {
+				kprintf("[+] falconeye: **************************Alert**************************: "
+					"Threat in Pid %d Tid %d StartAddress %p pointing to LoadLibrary\n",
+					(PVOID)ProcessId, 
+					(PVOID)ThreadId,
 					startAddress);
 			}
 		}
