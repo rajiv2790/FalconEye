@@ -21,8 +21,10 @@
 #include "FloatingCodeDetect.h"
 #include "Callbacks.h"
 #include "ActionHistory.h"
+#include "Helper.h"
 
 PVOID64 NtBase;
+PVOID64 ntdllBase;
 PVOID64 kernel32Base;
 PVOID64 kernel32wow64Base;
 
@@ -94,7 +96,7 @@ extern "C" NTSTATUS DriverEntry(
 
 	FindNtBase(OriginalNtCreateFile);
 	InitActionHistory();
-
+	GetVolumeList();
 	// Initialize infinity hook. Each system call will be redirected to syscall stub.
 	NTSTATUS Status = IfhInitialize(SyscallStub);
 	if (!NT_SUCCESS(Status))
@@ -112,6 +114,8 @@ void DriverUnload(
 	_In_ PDRIVER_OBJECT DriverObject)
 {
 	UNREFERENCED_PARAMETER(DriverObject);
+
+	CleanupActionHistory();
 
 	//
 	// Unload infinity hook gracefully.
@@ -243,6 +247,23 @@ NTSTATUS FEPerformLoadImageCallbackRegistration()
 	return status;
 }
 
+BOOLEAN CheckModuleInSetWindowsHookHistory(
+	PUNICODE_STRING  FullImageName,
+	HANDLE ProcessId)
+{
+	WCHAR module[260] = { 0 };
+	RtlCopyMemory(module, FullImageName->Buffer, FullImageName->Length);
+	NtUserSWHExEntry* entry = FindNtSetWindowHookExEntry(module);
+	if (NULL != entry && entry->Pid != (ULONG64)ProcessId) {
+		kprintf("[+] FalconEye: **************************Alert**************************: "
+		"LoadImage callback found %wZ registered by SetWindowsHook in source pid %d target pid %d\n", 
+			FullImageName, entry->Pid, ProcessId);
+		ExFreePool(entry);
+		return TRUE;
+	}
+	return FALSE;
+}
+
 /*
 * Callback function that gets called on ImageLoad Events
 * Finds address of kernel32.dll (both 32 and 64 bit), and
@@ -255,10 +276,10 @@ FELoadImageCallback(
 	PIMAGE_INFO  ImageInfo)
 {
 	UNREFERENCED_PARAMETER(ProcessId);
-	UNREFERENCED_PARAMETER(ImageInfo);
 	
 	pKernel32 = ImageInfo->ImageBase;
 	UNICODE_STRING kernel32 = RTL_CONSTANT_STRING(L"kernel32.dll");
+	UNICODE_STRING ntdllStr = RTL_CONSTANT_STRING(L"ntdll.dll");
 	
 	if (!kernel32Base)
 	{
@@ -304,6 +325,16 @@ FELoadImageCallback(
 				}
 			}
 		}
+	}
+	if (!ntdllBase) {
+		if (compareFilename(FullImageName, ntdllStr, TRUE) == 0)
+		{
+			ntdllBase = ImageInfo->ImageBase;
+			kprintf("[+] falconeye: ntdll Base found %wZ, %p\n", FullImageName, ntdllBase);
+		}
+	}
+	if (NULL != FullImageName) {
+		CheckModuleInSetWindowsHookHistory(FullImageName, ProcessId);
 	}
 }
 

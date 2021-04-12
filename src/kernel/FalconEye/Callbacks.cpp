@@ -173,20 +173,21 @@ VOID CreateThreadNotifyRoutineEx(
 		}
 		else
 		{
-			kprintf("[+] falconeye: CreateThreadNotifyRoutineEx thread %llu in process %llu and start address %p\n",
-				(PVOID)ThreadId,
-				(PVOID)ProcessId,
-				startAddress);
+			//kprintf("[+] falconeye: CreateThreadNotifyRoutineEx thread %llu in process %llu and start address %p\n",
+			//	(PVOID)ThreadId,
+			//	(PVOID)ProcessId,
+			//	startAddress);
 			if (CheckMemImageByAddress((PVOID)startAddress, NULL))
 			{
-				kprintf("[+] falconeye: **************************Alert**************************: Suspicious thread %llu in process %llu and start address %p\n", 
+				kprintf("[+] falconeye: **************************Alert**************************\n"
+					"Suspicious thread %llu in process %llu and start address %p\n", 
 					(PVOID)ThreadId,
 					(PVOID)ProcessId,
 					startAddress);
 			}
 			if (eLoadLibrary == IsKnownAPIOffset((PCHAR)startAddress)) {
-				kprintf("[+] falconeye: **************************Alert**************************: "
-					"Threat in Pid %d Tid %d StartAddress %p pointing to LoadLibrary\n",
+				kprintf("[+] falconeye: **************************Alert**************************\n"
+					"Thread in Pid %d with Tid %d StartAddress %p pointing to LoadLibrary\n",
 					(PVOID)ProcessId, 
 					(PVOID)ThreadId,
 					startAddress);

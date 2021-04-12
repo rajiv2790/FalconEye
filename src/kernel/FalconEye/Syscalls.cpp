@@ -171,6 +171,13 @@ NTSTATUS DetourNtUnmapViewOfSection(
         kprintf("FalconEye: DetourNtUnmapViewOfSection: CallerPid %d TargetPid %d BaseAddress %p.\n",
             callerPid, targetPid, BaseAddress);
         AddNtUnmapViewOfSectionEntry(callerPid, targetPid, BaseAddress);
+        if (BaseAddress == ntdllBase) {
+            kprintf("[+] falconeye: **************************Alert**************************: "
+                "Pid %llu Unmaping ntdll in pid %llu at address %p\n",
+                callerPid,
+                targetPid,
+                BaseAddress);
+        }
     }
     //kprintf("FalconEye: DetourNtUnmapViewOfSection: ProcessHandle %p.\n", ProcessHandle);
     return NtUnmapViewOfSectionOrigPtr(ProcessHandle, BaseAddress);
@@ -223,11 +230,17 @@ NTSTATUS DetourNtQueueApcThread(
     if (SELF_PROCESS_HANDLE != ThreadHandle) {
         ULONG callerPid = 0, targetPid = 0;
         GetActionPidsByThread(ThreadHandle, &callerPid, &targetPid);
-        kprintf("FalconEye: DetourNtQueueApcThread: callerPid %d targetPid %d ApcRoutine %p \n",
-            callerPid, targetPid, ApcRoutine);
-        if (eGlobalGetAtom == IsKnownAPIOffset((PCHAR)ApcRoutine)) {
+        //kprintf("FalconEye: DetourNtQueueApcThread: callerPid %d targetPid %d ApcRoutine %p \n",
+        //    callerPid, targetPid, ApcRoutine);
+        ULONG api = IsKnownAPIOffset((PCHAR)ApcRoutine);
+        if (eGlobalGetAtom == api) {
             kprintf("[+] falconeye: **************************Alert**************************: "
                 "Possible Atombombing by Pid %d into %d with QueueApcThread for GlobalGetAtom routine %p\n",
+                callerPid, targetPid, ApcRoutine);
+        }
+        if (eSetThreadCtx == api) {
+            kprintf("[+] falconeye: **************************Alert**************************: "
+                "Remote Threat Context set by Pid %d into %d with QueueApcThread with routine %p\n",
                 callerPid, targetPid, ApcRoutine);
         }
     }
@@ -379,7 +392,9 @@ HHOOK DetourNtUserSetWindowsHookEx(
     BOOL Ansi
 )
 {
-    kprintf("FalconEye: DetourNtUserSetWindowsHookEx: hMod %p.\n", Mod);
+    HANDLE currentPid = PsGetCurrentProcessId();
+    kprintf("FalconEye: DetourNtUserSetWindowsHookEx: currentPid %d hMod %p ModuleName %wZ.\n", currentPid, Mod, UnsafeModuleName);
+    AddNtUserSetWindowsHookExEntry((ULONG64)currentPid, Mod, UnsafeModuleName, ThreadId, HookId, HookProc);
     return NtUserSetWindowsHookExOrigPtr(Mod, UnsafeModuleName, ThreadId, HookId, HookProc, Ansi);
 }
 
@@ -478,8 +493,8 @@ PVOID GetDetourFunction(unsigned int idx)
     //    return DetourNtMapViewOfSection;
     case 0x2a: 
         return DetourNtUnmapViewOfSection;
-    case 0x52: 
-        return DetourNtResumeThread;
+    //case 0x52: 
+    //    return DetourNtResumeThread;
     case 0x9e: 
         return DetourNtConnectPort;
     case 0x1b6:

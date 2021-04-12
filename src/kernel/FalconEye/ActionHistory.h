@@ -4,6 +4,7 @@
 #define NTST_BUFFER_SIZE        512
 #define NTUSERSWLP_BUFFER_SIZE  1024
 #define NTUSERSP_BUFFER_SIZE    1024
+#define NTUSERSWHEX_BUFFER_SIZE 512
 
 #define NTWVM_DATA_COPY_SIZE    300
 
@@ -40,8 +41,17 @@ typedef struct _NtUserSPEntry {
     HANDLE Data;
 }NtUserSPEntry;
 
+typedef struct _NtUserSWHExEntry {
+    ULONG64     Pid;
+    HINSTANCE   Mod;
+    DWORD       ThreadId;
+    int         HookId;
+    HOOKPROC    HookProc;
+    WCHAR       ModuleName[260];
+}NtUserSWHExEntry;
 
 BOOLEAN InitActionHistory();
+BOOLEAN CleanupActionHistory();
 BOOLEAN AddNtWriteVirtualMemoryEntry(
     ULONG   callerPid,
     ULONG   targetPid,
@@ -78,3 +88,14 @@ NtUserSPEntry* FindNtSetWindowLongPtrEntry(HWND hWnd);
 
 NtWVMEntry* FindNtWriteVirtualMemoryEntry(ULONG64 callerPid, PVOID baseAddress);
 NtWVMEntry* FindNtWriteVirtualMemoryEntryByAddress(ULONG64 callerPid, PVOID baseAddress);
+
+BOOLEAN AddNtUserSetWindowsHookExEntry(
+    ULONG64   Pid,
+    HINSTANCE Mod,
+    PUNICODE_STRING UnsafeModuleName,
+    DWORD ThreadId,
+    int HookId,
+    HOOKPROC HookProc
+);
+
+NtUserSWHExEntry* FindNtSetWindowHookExEntry(WCHAR* pModule);

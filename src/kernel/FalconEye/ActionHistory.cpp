@@ -2,6 +2,7 @@
 #include "stdafx.h"
 #include "NtDefs.h"
 #include "ActionHistory.h"
+#include "Helper.h"
 
 NtWVMEntry* NtWVMBuffer = NULL;
 SIZE_T      freeNtWVMIdx = 0;
@@ -22,6 +23,10 @@ ERESOURCE   NtUserSWLPLock;
 NtUserSPEntry* NtUserSPBuffer = NULL;
 SIZE_T      freeNtUserSPIdx = 0;
 ERESOURCE   NtUserSPLock;
+
+NtUserSWHExEntry* NtUserSWHExBuffer = NULL;
+SIZE_T      freeNtUserSWHExIdx = 0;
+ERESOURCE   NtUserSWHExLock;
 
 extern "C" {
     NTSTATUS ReadWVMData(PVOID localBuffer, ULONG bufferSize, PCHAR targetBuffer);
@@ -99,6 +104,30 @@ BOOLEAN InitNtUserSPHistory()
     return TRUE;
 }
 
+BOOLEAN InitNtUserSWHExHistory()
+{
+    NtUserSWHExBuffer = (NtUserSWHExEntry*)ExAllocatePoolWithTag(
+        NonPagedPool,
+        NTUSERSWHEX_BUFFER_SIZE * sizeof(NtUserSWHExEntry),
+        ActionHistoryTag
+    );
+    if (NULL == NtUserSWHExBuffer) {
+        return FALSE;
+    }
+    ExInitializeResourceLite(&NtUserSWHExLock);
+    return TRUE;
+}
+
+BOOLEAN CleanupActionHistory()
+{
+    ExDeleteResourceLite(&NtWVMLock);
+    ExDeleteResourceLite(&NtUnMVSLock);
+    ExDeleteResourceLite(&NtSTLock);
+    ExDeleteResourceLite(&NtUserSWLPLock);
+    ExDeleteResourceLite(&NtUserSPLock);
+    ExDeleteResourceLite(&NtUserSWHExLock);
+    return TRUE;
+}
 
 BOOLEAN InitActionHistory()
 {
@@ -107,6 +136,7 @@ BOOLEAN InitActionHistory()
     InitNtSTHistory();
     InitNtUserSWLPHistory();
     InitNtUserSPHistory();
+    InitNtUserSWHExHistory();
     return TRUE;
 }
 
@@ -127,6 +157,14 @@ BOOLEAN AddNtWriteVirtualMemoryEntry(
     RtlCopyMemory(NtWVMBuffer[freeNtWVMIdx].initialData, targetBuffer, NTWVM_DATA_COPY_SIZE);
     freeNtWVMIdx = (freeNtWVMIdx + 1) % NTWVM_BUFFER_SIZE;
     ExReleaseResourceLite(&NtWVMLock);
+    if (IsValidPEHeader(targetBuffer, NTWVM_DATA_COPY_SIZE)) {
+        kprintf("[+] FalconEye: **************************Alert**************************: "
+            "Pid %llu writing PE Header in pid %llu at address %p\n",
+            callerPid,
+            targetPid,
+            targetAddr);
+    }
+    IsValidDllPath(targetBuffer, NTWVM_DATA_COPY_SIZE);
     return TRUE;
 }
 
@@ -347,3 +385,63 @@ NtUserSPEntry* FindNtSetWindowLongPtrEntry(HWND hWnd)
     ExReleaseResourceLite(&NtUserSPLock);
     return entry;
 }
+
+
+
+BOOLEAN AddNtUserSetWindowsHookExEntry(
+    ULONG64   Pid,
+    HINSTANCE Mod,
+    PUNICODE_STRING UnsafeModuleName,
+    DWORD ThreadId,
+    int HookId,
+    HOOKPROC HookProc
+)
+{
+    if (FALSE == ExAcquireResourceExclusiveLite(&NtUserSWHExLock, TRUE)) {
+        return FALSE;
+    }
+    NtUserSWHExBuffer[freeNtUserSWHExIdx].Pid = Pid;
+    NtUserSWHExBuffer[freeNtUserSWHExIdx].Mod = Mod;
+    NtUserSWHExBuffer[freeNtUserSWHExIdx].ThreadId = ThreadId;
+    NtUserSWHExBuffer[freeNtUserSWHExIdx].HookId = HookId;
+    NtUserSWHExBuffer[freeNtUserSWHExIdx].HookProc = HookProc;
+
+    RtlZeroMemory(NtUserSWHExBuffer[freeNtUserSWHExIdx].ModuleName, MAX_PATH * sizeof(WCHAR));
+    if (NULL != UnsafeModuleName->Buffer) {
+        WCHAR dosPath[MAX_PATH] = { 0 };
+        RtlCopyMemory(dosPath, UnsafeModuleName->Buffer, UnsafeModuleName->Length);
+        ConvertDosPathToDevicePath(dosPath, NtUserSWHExBuffer[freeNtUserSWHExIdx].ModuleName);
+    }
+    freeNtUserSWHExIdx = (freeNtUserSWHExIdx + 1) % NTUSERSWHEX_BUFFER_SIZE;
+    ExReleaseResourceLite(&NtUserSWHExLock);
+    return TRUE;
+}
+
+// Caller must deallocate NtUserSWHExEntry
+NtUserSWHExEntry* FindNtSetWindowHookExEntry(WCHAR *pModule)
+{
+    NtUserSWHExEntry* entry = NULL;
+    if (NULL == pModule) {
+        return NULL;
+    }
+    if (FALSE == ExAcquireResourceExclusiveLite(&NtUserSWHExLock, TRUE)) {
+        return NULL;
+    }
+    for (auto i = 0; i < NTUSERSWHEX_BUFFER_SIZE; i++) {
+        if (0 == wcscmp (NtUserSWHExBuffer[i].ModuleName, pModule)) {
+            entry = (NtUserSWHExEntry*)ExAllocatePoolWithTag(
+                NonPagedPool,
+                sizeof(NtUserSWHExEntry),
+                ActionHistoryTag);
+            if (NULL == entry) {
+                ExReleaseResourceLite(&NtUserSWHExLock);
+                return NULL;
+            }
+            RtlCopyMemory(entry, &NtUserSWHExBuffer[i], sizeof(NtUserSWHExEntry));
+            break;
+        }
+    }
+    ExReleaseResourceLite(&NtUserSWHExLock);
+    return entry;
+}
+
