@@ -133,7 +133,7 @@ ULONG IsKnownAPIOffset(PCHAR pAddr)
 {
     if (pAddr == (PCHAR)kernel32Base + GLOBALGETATOMA_OFFSET
         || pAddr == (PCHAR)kernel32Base + GLOBALGETATOMW_OFFSET) {
-        kprintf("FalconEye: IsKnownAPIOffset: Addr %p matched GlobalGetAtom\n",
+        alertf("FalconEye: IsKnownAPIOffset: Addr %p matched GlobalGetAtom\n",
             pAddr);
         return eGlobalGetAtom;
     }
@@ -141,7 +141,7 @@ ULONG IsKnownAPIOffset(PCHAR pAddr)
         || pAddr == (PCHAR)kernel32Base + GLOBALADDATOMW_OFFSET
         || pAddr == (PCHAR)kernel32Base + GLOBALADDATOMEXA_OFFSET
         || pAddr == (PCHAR)kernel32Base + GLOBALADDATOMEXW_OFFSET) {
-        kprintf("FalconEye: IsKnownAPIOffset: Addr %p matched GlobalAddAtom\n",
+        alertf("FalconEye: IsKnownAPIOffset: Addr %p matched GlobalAddAtom\n",
             pAddr);
         return eGlobalAddAtom;
     }
@@ -149,12 +149,12 @@ ULONG IsKnownAPIOffset(PCHAR pAddr)
         || pAddr == (PCHAR)kernel32Base + LOADLIBW_OFFSET
         || pAddr == (PCHAR)kernel32Base + LOADLIBEXA_OFFSET
         || pAddr == (PCHAR)kernel32Base + LOADLIBEXW_OFFSET) {
-        kprintf("FalconEye: IsKnownAPIOffset: Addr %p matched LoadLibrary\n",
+        alertf("FalconEye: IsKnownAPIOffset: Addr %p matched LoadLibrary\n",
             pAddr);
         return eLoadLibrary;
     }
     else if (pAddr == (PCHAR)kernel32Base + SETTHREADCTX_OFFSET) {
-        kprintf("FalconEye: IsKnownAPIOffset: Addr %p matched SetThreadContext\n",
+        alertf("FalconEye: IsKnownAPIOffset: Addr %p matched SetThreadContext\n",
             pAddr);
         return eSetThreadCtx;
     }
@@ -224,8 +224,8 @@ BOOLEAN GetAsciiPathFromBuffer(CHAR* buffer, size_t offset, size_t size)
             break;
         }
     }
-    kprintf("[+] falconeye: **************************DLL path at **************************\n"
-        "offset %d : %s", offset, path);
+    alertf("[+] FalconEye: **************************Alert**************************\n"
+        "DLL path at offset %d : %s", offset, path);
     return TRUE;
 }
 
@@ -241,8 +241,8 @@ BOOLEAN GetWcharPathFromBuffer(CHAR* buffer, size_t offset, size_t size)
             break;
         }
     }
-    kprintf("[+] falconeye: **************************DLL path at **************************\n"
-        "offset %d : %S", offset, path);
+    alertf("[+] FalconEye: **************************Alert**************************\n"
+        "DLL path at offset %d : %S", offset, path);
     return TRUE;
 }
 

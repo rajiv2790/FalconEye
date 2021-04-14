@@ -168,12 +168,12 @@ NTSTATUS DetourNtUnmapViewOfSection(
     if (SELF_PROCESS_HANDLE != ProcessHandle) {
         ULONG callerPid, targetPid;
         GetActionPids(ProcessHandle, &callerPid, &targetPid);
-        kprintf("FalconEye: DetourNtUnmapViewOfSection: CallerPid %d TargetPid %d BaseAddress %p.\n",
-            callerPid, targetPid, BaseAddress);
-        AddNtUnmapViewOfSectionEntry(callerPid, targetPid, BaseAddress);
+        //AddNtUnmapViewOfSectionEntry(callerPid, targetPid, BaseAddress);
         if (BaseAddress == ntdllBase) {
-            kprintf("[+] falconeye: **************************Alert**************************: "
-                "Pid %llu Unmaping ntdll in pid %llu at address %p\n",
+            alertf("FalconEye: DetourNtUnmapViewOfSection: CallerPid %d TargetPid %d BaseAddress %p.\n",
+                callerPid, targetPid, BaseAddress);
+            alertf("[+] FalconEye: **************************Alert**************************: \n"
+                "Attacker pid %llu unmaping ntdll in victim pid %llu at address %p\n",
                 callerPid,
                 targetPid,
                 BaseAddress);
@@ -209,13 +209,13 @@ NTSTATUS DetourNtResumeThread(
     _Out_opt_ PULONG        SuspendCount)
 {
     if (SELF_PROCESS_HANDLE != ThreadHandle) {
-        ULONG callerPid, targetPid;
+        /*ULONG callerPid, targetPid;
         GetActionPidsByThread(ThreadHandle, &callerPid, &targetPid);
         if (callerPid != targetPid) {
             ULONG targetTid = GetThreadIdByHandle(ThreadHandle);
             kprintf("FalconEye: DetourNtResumeThread: callerPid %d targetPid %d targetTid %d.\n",
                 callerPid, targetPid, targetTid);
-        }
+        }*/
     }
     return NtResumeThreadOrigPtr(ThreadHandle, SuspendCount);
 }
@@ -230,17 +230,19 @@ NTSTATUS DetourNtQueueApcThread(
     if (SELF_PROCESS_HANDLE != ThreadHandle) {
         ULONG callerPid = 0, targetPid = 0;
         GetActionPidsByThread(ThreadHandle, &callerPid, &targetPid);
-        //kprintf("FalconEye: DetourNtQueueApcThread: callerPid %d targetPid %d ApcRoutine %p \n",
-        //    callerPid, targetPid, ApcRoutine);
         ULONG api = IsKnownAPIOffset((PCHAR)ApcRoutine);
         if (eGlobalGetAtom == api) {
-            kprintf("[+] falconeye: **************************Alert**************************: "
-                "Possible Atombombing by Pid %d into %d with QueueApcThread for GlobalGetAtom routine %p\n",
+            alertf("FalconEye: DetourNtQueueApcThread: callerPid %d targetPid %d ApcRoutine %p \n",
+                callerPid, targetPid, ApcRoutine);
+            alertf("[+] FalconEye: **************************Alert**************************: \n"
+                "Possible Atombombing by attacker pid %d in victim pid %d with QueueApcThread for GlobalGetAtom routine %p\n",
                 callerPid, targetPid, ApcRoutine);
         }
         if (eSetThreadCtx == api) {
-            kprintf("[+] falconeye: **************************Alert**************************: "
-                "Remote Threat Context set by Pid %d into %d with QueueApcThread with routine %p\n",
+            alertf("FalconEye: DetourNtQueueApcThread: callerPid %d targetPid %d ApcRoutine %p \n",
+                callerPid, targetPid, ApcRoutine);
+            alertf("[+] FalconEye: **************************Alert**************************: \n"
+                "Remote Threat Context set by attacker pid %d in victim pid %d with QueueApcThread with routine %p\n",
                 callerPid, targetPid, ApcRoutine);
         }
     }
@@ -252,13 +254,13 @@ NTSTATUS DetourNtSetContextThread(
     _In_ PCONTEXT             Context)
 {
     if (SELF_PROCESS_HANDLE != ThreadHandle) {
-        ULONG callerPid, targetPid;
+        /*ULONG callerPid, targetPid;
         GetActionPidsByThread(ThreadHandle, &callerPid, &targetPid);
         if (callerPid != targetPid) {
             ULONG targetTid = GetThreadIdByHandle(ThreadHandle);
             kprintf("FalconEye: DetourNtSetContextThread: callerPid %d targetPid %d targetTid %d Context %p.\n",
                 callerPid, targetPid, targetTid, Context);
-        }
+        }*/
     }
     return NtSetContextThreadOrigPtr(ThreadHandle, Context);
 }
@@ -302,12 +304,12 @@ NTSTATUS DetourNtConnectPort(
     _In_ PVOID                ConnectionInfo,
     _In_ PULONG               ConnectionInfoLength)
 {
-    HANDLE CurrentPsHandle = PsGetProcessId(PsGetCurrentProcess());
+    /*HANDLE CurrentPsHandle = PsGetProcessId(PsGetCurrentProcess());
     ULONG callerPid = ULONG((LONGLONG)CurrentPsHandle & 0xffffffff);
     if (NULL != ServerPortName) {
         kprintf("FalconEye: DetourNtConnectPort: callerPid %d serverPort %wZ connectionInfo %p.\n",
             callerPid, ServerPortName, ConnectionInfo);
-    }
+    }*/
     return NtConnectPortOrigPtr(ClientPortHandle, ServerPortName, SecurityQos, ClientSharedMemory, ServerSharedMemory, MaximumMessageLength, ConnectionInfo, ConnectionInfoLength);
 }
 
@@ -368,7 +370,9 @@ BOOL DetourNtUserSetProp(
         RtlCopyMemory(&payloadAddress, &entry->initialData[24], sizeof(UINT64));
         if (CheckMemImageByAddress((PVOID)payloadAddress, (HANDLE)entry->targetPid))
         {
-            kprintf("[+] falconeye: **************************Alert**************************: Suspected PROPagate attack: CallerPID %d TargetPID %d FloatingCode %x\n",
+            alertf("FalconEye: DetourNtUserSetProp: HWND %x Atom %x Data %x\n", hWnd, Atom, Data);
+            alertf("[+] FalconEye: **************************Alert**************************: \n"
+                "Suspected PROPagate attack: attacker pid %d victim pid %d. FloatingCode address %p\n",
                 currentPID,
                 entry->targetPid,
                 payloadAddress);

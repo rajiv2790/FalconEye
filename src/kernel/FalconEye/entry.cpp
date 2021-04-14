@@ -58,7 +58,7 @@ extern "C" NTSTATUS DriverEntry(
 
 	NTSTATUS status;
 
-	kprintf("[+] falconeye: Loaded.\n");
+	alertf("[+] falconeye: Loaded.\n");
 
 	//Initialize lock for dealing with OpenProcessTable
 	RtlZeroMemory(&FeOptLock, sizeof(FeOptLock));
@@ -101,7 +101,7 @@ extern "C" NTSTATUS DriverEntry(
 	NTSTATUS Status = IfhInitialize(SyscallStub);
 	if (!NT_SUCCESS(Status))
 	{
-		kprintf("[-] infinityhook: Failed to initialize with status: 0x%lx.\n", Status);
+		alertf("[-] infinityhook: Failed to initialize with status: 0x%lx.\n", Status);
 	}
 
 	return Status;
@@ -152,7 +152,7 @@ void DriverUnload(
 		bDelete = RtlDeleteElementGenericTable(&OpenProcessTable, node);
 		if (!bDelete)
 		{
-			kprintf("[+] falconeye: Delete failed: aPID= %llu vPID= %llu\n", aPID, vPID);
+			alertf("[+] falconeye: Delete failed: aPID= %llu vPID= %llu\n", aPID, vPID);
 			break;
 		}
 		tempNode = NULL;
@@ -160,7 +160,7 @@ void DriverUnload(
 	}
 	KeReleaseSpinLock(&FeOptLock.lock, oldIrql);
 
-	kprintf("\n[!] falconeye: Unloading... BYE!\n");
+	alertf("\n[!] falconeye: Unloading... BYE!\n");
 }
 
 
@@ -255,8 +255,9 @@ BOOLEAN CheckModuleInSetWindowsHookHistory(
 	RtlCopyMemory(module, FullImageName->Buffer, FullImageName->Length);
 	NtUserSWHExEntry* entry = FindNtSetWindowHookExEntry(module);
 	if (NULL != entry && entry->Pid != (ULONG64)ProcessId) {
-		kprintf("[+] FalconEye: **************************Alert**************************: "
-		"LoadImage callback found %wZ registered by SetWindowsHook in source pid %d target pid %d\n", 
+		alertf("[+] FalconEye: Pid %llu loaded %wZ, %p\n", ProcessId, FullImageName);
+		alertf("[+] FalconEye: **************************Alert**************************: \n"
+		"LoadImage callback found %wZ registered by SetWindowsHook; attacker pid %d loaded in victim pid %d\n", 
 			FullImageName, entry->Pid, ProcessId);
 		ExFreePool(entry);
 		return TRUE;

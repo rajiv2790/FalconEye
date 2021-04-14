@@ -158,8 +158,10 @@ BOOLEAN AddNtWriteVirtualMemoryEntry(
     freeNtWVMIdx = (freeNtWVMIdx + 1) % NTWVM_BUFFER_SIZE;
     ExReleaseResourceLite(&NtWVMLock);
     if (IsValidPEHeader(targetBuffer, NTWVM_DATA_COPY_SIZE)) {
-        kprintf("[+] FalconEye: **************************Alert**************************: "
-            "Pid %llu writing PE Header in pid %llu at address %p\n",
+        alertf("FalconEye: DetourNtWriteVirtualMemory: callerPid %d targetPid %d BaseAddr %p.\n",
+            callerPid, targetPid, targetAddr);
+        alertf("[+] FalconEye: **************************Alert**************************: \n"
+            "Attacker pid %llu writing PE Header in victim pid %llu at address %p\n",
             callerPid,
             targetPid,
             targetAddr);
