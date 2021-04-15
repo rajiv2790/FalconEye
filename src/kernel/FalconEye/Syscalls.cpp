@@ -114,7 +114,7 @@ NTSTATUS DetourNtWriteVirtualMemory(
     if (SELF_PROCESS_HANDLE != ProcessHandle) {
         ULONG callerPid, targetPid;
         GetActionPids(ProcessHandle, &callerPid, &targetPid);
-        kprintf("FalconEye: DetourNtWriteVirtualMemory: callerPid %d targetPid %d BaseAddr %p.\n", 
+        alertf("FalconEye: DetourNtWriteVirtualMemory: callerPid %d targetPid %d BaseAddr %p.\n", 
             callerPid, targetPid, BaseAddress);
         AddNtWriteVirtualMemoryEntry(callerPid, targetPid, BaseAddress, Buffer, NumberOfBytesToWrite);
     }
@@ -286,10 +286,8 @@ NTSTATUS DetourNtSetInformationProcess(
     if (SELF_PROCESS_HANDLE != ProcessHandle) {
         ULONG callerPid, targetPid;
         GetActionPids(ProcessHandle, &callerPid, &targetPid);
-        /*
-        kprintf("FalconEye: DetourNtSetInformationProcess: callerPid %d targetPid %d InfoClass %d.\n",
+        alertf("FalconEye: DetourNtSetInformationProcess: callerPid %d targetPid %d InfoClass %d.\n",
             callerPid, targetPid, ProcessInformationClass);
-        */
     }
     return NtSetInformationProcessOrigPtr(ProcessHandle, ProcessInformationClass, ProcessInformation, ProcessInformationLength);
 }
