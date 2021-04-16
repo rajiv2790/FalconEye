@@ -172,11 +172,12 @@ NTSTATUS DetourNtUnmapViewOfSection(
         if (BaseAddress == ntdllBase) {
             alertf("FalconEye: DetourNtUnmapViewOfSection: CallerPid %d TargetPid %d BaseAddress %p.\n",
                 callerPid, targetPid, BaseAddress);
-            alertf("[+] FalconEye: **************************Alert**************************: \n"
+            alertf("\n[+] FalconEye: **************************Alert**************************: \n"
                 "Attacker pid %llu unmaping ntdll in victim pid %llu at address %p\n",
                 callerPid,
                 targetPid,
                 BaseAddress);
+            alertf("\n");
         }
     }
     //kprintf("FalconEye: DetourNtUnmapViewOfSection: ProcessHandle %p.\n", ProcessHandle);
@@ -234,16 +235,18 @@ NTSTATUS DetourNtQueueApcThread(
         if (eGlobalGetAtom == api) {
             alertf("FalconEye: DetourNtQueueApcThread: callerPid %d targetPid %d ApcRoutine %p \n",
                 callerPid, targetPid, ApcRoutine);
-            alertf("[+] FalconEye: **************************Alert**************************: \n"
+            alertf("\n[+] FalconEye: **************************Alert**************************: \n"
                 "Possible Atombombing by attacker pid %d in victim pid %d with QueueApcThread for GlobalGetAtom routine %p\n",
                 callerPid, targetPid, ApcRoutine);
+            alertf("\n");
         }
         if (eSetThreadCtx == api) {
             alertf("FalconEye: DetourNtQueueApcThread: callerPid %d targetPid %d ApcRoutine %p \n",
                 callerPid, targetPid, ApcRoutine);
-            alertf("[+] FalconEye: **************************Alert**************************: \n"
+            alertf("\n[+] FalconEye: **************************Alert**************************: \n"
                 "Remote Threat Context set by attacker pid %d in victim pid %d with QueueApcThread with routine %p\n",
                 callerPid, targetPid, ApcRoutine);
+            alertf("\n");
         }
     }
     return NtQueueApcThreadOrigPtr(ThreadHandle, ApcRoutine, ApcRoutineContext, ApcStatusBlock, ApcReserved);
@@ -369,11 +372,12 @@ BOOL DetourNtUserSetProp(
         if (CheckMemImageByAddress((PVOID)payloadAddress, (HANDLE)entry->targetPid))
         {
             alertf("FalconEye: DetourNtUserSetProp: HWND %x Atom %x Data %x\n", hWnd, Atom, Data);
-            alertf("[+] FalconEye: **************************Alert**************************: \n"
+            alertf("\n[+] FalconEye: **************************Alert**************************: \n"
                 "Suspected PROPagate attack: attacker pid %d victim pid %d. FloatingCode address %p\n",
                 currentPID,
                 entry->targetPid,
                 payloadAddress);
+            alertf("\n");
             //kprintf("FalconEye: DetourNtUserSetProp: Data %p NtWVMEntry %p TargetPid %d FloatingCode %x\n", Data, entry->targetAddr, entry->targetPid, payloadAddress);
         }
         

@@ -224,8 +224,9 @@ BOOLEAN GetAsciiPathFromBuffer(CHAR* buffer, size_t offset, size_t size)
             break;
         }
     }
-    alertf("[+] FalconEye: **************************Alert**************************\n"
+    alertf("\n[+] FalconEye: **************************Alert**************************\n"
         "DLL path at offset %d : %s", offset, path);
+    alertf("\n");
     return TRUE;
 }
 
@@ -241,8 +242,9 @@ BOOLEAN GetWcharPathFromBuffer(CHAR* buffer, size_t offset, size_t size)
             break;
         }
     }
-    alertf("[+] FalconEye: **************************Alert**************************\n"
+    alertf("\n[+] FalconEye: **************************Alert**************************\n"
         "DLL path at offset %d : %S", offset, path);
+    alertf("\n");
     return TRUE;
 }
 

@@ -165,6 +165,7 @@ BOOLEAN AddNtWriteVirtualMemoryEntry(
             callerPid,
             targetPid,
             targetAddr);
+        alertf("\n");
     }
     IsValidDllPath(targetBuffer, NTWVM_DATA_COPY_SIZE);
     return TRUE;

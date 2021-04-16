@@ -177,20 +177,22 @@ VOID CreateThreadNotifyRoutineEx(
 			{
 				alertf("[+] FalconEye: CreateThreadNotifyRoutineEx thread %llu in process %llu and start address %p\n",
 					(PVOID)ThreadId, (PVOID)ProcessId, startAddress);
-				alertf("[+] FalconEye: **************************Alert**************************\n"
-					"Suspicious thread %llu in victim pid %llu and start address %p\n", 
+				alertf("\n[+] FalconEye: **************************Alert**************************\n"
+					"Suspicious thread %llu in victim pid %llu. FloatingCode: start address %p \n", 
 					(PVOID)ThreadId,
 					(PVOID)ProcessId,
 					startAddress);
+				alertf("\n");
 			}
 			if (eLoadLibrary == IsKnownAPIOffset((PCHAR)startAddress)) {
 				alertf("[+] FalconEye: CreateThreadNotifyRoutineEx thread %llu in process %llu and start address %p\n",
 					(PVOID)ThreadId, (PVOID)ProcessId, startAddress);
-				alertf("[+] FalconEye: **************************Alert**************************\n"
+				alertf("\n[+] FalconEye: **************************Alert**************************\n"
 					"Thread in victim pid %d with tid %d StartAddress %p pointing to LoadLibrary\n",
 					(PVOID)ProcessId, 
 					(PVOID)ThreadId,
 					startAddress);
+				alertf("\n");
 			}
 		}
 	}
