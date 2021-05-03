@@ -448,3 +448,22 @@ NtUserSWHExEntry* FindNtSetWindowHookExEntry(WCHAR *pModule)
     return entry;
 }
 
+BOOLEAN CheckWriteSuspendHistoryForSetThrCtx(
+    ULONG callerPid, 
+    ULONG targetPid,
+    ULONG targetTid)
+{
+    NtSTEntry* stEntry = FindNtSuspendThreadEntry(callerPid, targetPid);
+    if (NULL != stEntry) {
+        if (targetTid == stEntry->targetTid) {
+            alertf("[+] FalconEye: **************************Alert**************************: \n"
+                "Attacker pid %d setting context for suspended thread %d in victim pid %d \n",
+                callerPid, targetTid, targetPid);
+        }
+        ExFreePool(stEntry);
+    }
+    else {
+        return false;
+    }
+    return true;
+}

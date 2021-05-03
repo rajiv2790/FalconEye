@@ -153,6 +153,11 @@ ULONG IsKnownAPIOffset(PCHAR pAddr)
             pAddr);
         return eLoadLibrary;
     }
+    else if (pAddr == (PCHAR)kernel32Base + GETPROC_OFFSET) {
+        alertf("FalconEye: IsKnownAPIOffset: Addr %p matched GetProcAddress\n",
+            pAddr);
+        return eGetProcAddr;
+    }
     else if (pAddr == (PCHAR)kernel32Base + SETTHREADCTX_OFFSET) {
         alertf("FalconEye: IsKnownAPIOffset: Addr %p matched SetThreadContext\n",
             pAddr);

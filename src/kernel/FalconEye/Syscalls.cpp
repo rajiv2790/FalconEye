@@ -248,6 +248,10 @@ NTSTATUS DetourNtQueueApcThread(
                 callerPid, targetPid, ApcRoutine);
             alertf("\n");
         }
+        else {
+            kprintf("FalconEye: DetourNtQueueApcThread: callerPid %d targetPid %d ApcRoutine %p \n",
+                callerPid, targetPid, ApcRoutine);
+        }
     }
     return NtQueueApcThreadOrigPtr(ThreadHandle, ApcRoutine, ApcRoutineContext, ApcStatusBlock, ApcReserved);
 }
@@ -257,13 +261,14 @@ NTSTATUS DetourNtSetContextThread(
     _In_ PCONTEXT             Context)
 {
     if (SELF_PROCESS_HANDLE != ThreadHandle) {
-        /*ULONG callerPid, targetPid;
+        ULONG callerPid, targetPid;
         GetActionPidsByThread(ThreadHandle, &callerPid, &targetPid);
         if (callerPid != targetPid) {
             ULONG targetTid = GetThreadIdByHandle(ThreadHandle);
             kprintf("FalconEye: DetourNtSetContextThread: callerPid %d targetPid %d targetTid %d Context %p.\n",
                 callerPid, targetPid, targetTid, Context);
-        }*/
+            CheckWriteSuspendHistoryForSetThrCtx(callerPid, targetPid, targetTid);
+        }
     }
     return NtSetContextThreadOrigPtr(ThreadHandle, Context);
 }

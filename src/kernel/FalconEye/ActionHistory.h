@@ -99,3 +99,8 @@ BOOLEAN AddNtUserSetWindowsHookExEntry(
 );
 
 NtUserSWHExEntry* FindNtSetWindowHookExEntry(WCHAR* pModule);
+
+BOOLEAN CheckWriteSuspendHistoryForSetThrCtx(
+    ULONG callerPid,
+    ULONG targetPid,
+    ULONG targetTid);

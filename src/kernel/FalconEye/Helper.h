@@ -14,6 +14,7 @@
 #define LOADLIBEXW_OFFSET   0x001a200
 #define LOADLIBEXA_OFFSET   0x001e550
 
+#define GETPROC_OFFSET      0x001a360
 #define SETTHREADCTX_OFFSET 0x0036a30
 
 #define MAX_DLL_START_OFFSET  16 * sizeof(WCHAR)
@@ -27,7 +28,8 @@ enum {
     eGlobalGetAtom,
     eGlobalAddAtom,
     eLoadLibrary,
-    eSetThreadCtx
+    eSetThreadCtx,
+    eGetProcAddr
 };
 
 typedef struct _VolDeviceEntry {
