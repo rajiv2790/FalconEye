@@ -5,6 +5,7 @@
 #define NTUSERSWLP_BUFFER_SIZE  1024
 #define NTUSERSP_BUFFER_SIZE    1024
 #define NTUSERSWHEX_BUFFER_SIZE 512
+#define NTUWNFSD_BUFFER_SIZE    512
 
 #define NTWVM_DATA_COPY_SIZE    300
 
@@ -49,6 +50,12 @@ typedef struct _NtUserSWHExEntry {
     HOOKPROC    HookProc;
     WCHAR       ModuleName[260];
 }NtUserSWHExEntry;
+
+typedef struct _NtUWnfSDEntry {
+    ULONG CallerPid;
+    VOID* Buffer;
+    ULONG Length;
+}NtUWnfSDEntry;
 
 BOOLEAN InitActionHistory();
 BOOLEAN CleanupActionHistory();
@@ -100,7 +107,16 @@ BOOLEAN AddNtUserSetWindowsHookExEntry(
 
 NtUserSWHExEntry* FindNtSetWindowHookExEntry(WCHAR* pModule);
 
+BOOLEAN AddNtUpdateWnfStateDataEntry(
+    ULONG CallerPid,
+    VOID* Buffer,
+    ULONG Length);
+
+NtUWnfSDEntry* FindAddNtUpdateWnfStateDataEntry(ULONG CallerPid);
+
 BOOLEAN CheckWriteSuspendHistoryForSetThrCtx(
     ULONG callerPid,
     ULONG targetPid,
     ULONG targetTid);
+
+BOOLEAN CheckPriorWnfStateUpdate(ULONG callerPid, ULONG targetPid);

@@ -117,6 +117,7 @@ NTSTATUS DetourNtWriteVirtualMemory(
         alertf("FalconEye: DetourNtWriteVirtualMemory: callerPid %d targetPid %d BaseAddr %p.\n", 
             callerPid, targetPid, BaseAddress);
         AddNtWriteVirtualMemoryEntry(callerPid, targetPid, BaseAddress, Buffer, NumberOfBytesToWrite);
+        CheckPriorWnfStateUpdate(callerPid, targetPid);
     }
     return NtWriteVirtualMemoryOrigPtr(ProcessHandle, BaseAddress, Buffer, NumberOfBytesToWrite, NumberOfBytesWritten);
 }
@@ -360,6 +361,9 @@ NTSTATUS DetourNtUpdateWnfStateData(
     LOGICAL CheckStamp)
 {
     kprintf("FalconEye: DetourNtUpdateWnfStateData: Buffer %p Length %d.\n", Buffer, Length);
+    HANDLE CurrentPsHandle = PsGetProcessId(PsGetCurrentProcess());
+    ULONG CallerPid = ULONG((LONGLONG)CurrentPsHandle & 0xffffffff);
+    AddNtUpdateWnfStateDataEntry(CallerPid, Buffer, Length);
     return NtUpdateWnfStateDataOrigPtr(StateName, Buffer, Length, TypeId, ExplicitScope, MatchingChangeStamp, CheckStamp);
 }
 
@@ -388,7 +392,6 @@ BOOL DetourNtUserSetProp(
         
         ExFreePool(entry);
     }
-   
 
     AddNtUserSetPropEntry(hWnd, Atom, Data);
     return NtUserSetPropOrigPtr(hWnd, Atom, Data);
@@ -479,7 +482,7 @@ void SaveOriginalFunctionAddress(
     SAVE_FN_ADDR(0x1b5, NtSuspendProcess);
     SAVE_FN_ADDR(0xe2, NtFlushInstructionCache);
     SAVE_FN_ADDR(0x4e, NtCreateThread);
-    SAVE_FN_ADDR(0x1CE, NtUpdateWnfStateData);
+    SAVE_FN_ADDR(0x1C8, NtUpdateWnfStateData);
     SAVE_FN_ADDR(0x104F, NtUserSetProp);
     SAVE_FN_ADDR(0x108C, NtUserSetWindowsHookEx);
     SAVE_FN_ADDR(0x14E9, NtUserSetWindowLongPtr);
@@ -518,7 +521,7 @@ PVOID GetDetourFunction(unsigned int idx)
         return DetourNtFlushInstructionCache;
     case 0x4e:
         return DetourNtCreateThread;
-    case 0x1CE:
+    case 0x1C8: //0x1CE:
         return DetourNtUpdateWnfStateData;
     case 0x104F:
         return DetourNtUserSetProp;

@@ -28,6 +28,10 @@ NtUserSWHExEntry* NtUserSWHExBuffer = NULL;
 SIZE_T      freeNtUserSWHExIdx = 0;
 ERESOURCE   NtUserSWHExLock;
 
+NtUWnfSDEntry* NtUWnfSDBuffer = NULL;
+SIZE_T      freeNtUWnfSDIdx = 0;
+ERESOURCE   NtUWnfSDLock;
+
 extern "C" {
     NTSTATUS ReadWVMData(PVOID localBuffer, ULONG bufferSize, PCHAR targetBuffer);
 }
@@ -118,6 +122,20 @@ BOOLEAN InitNtUserSWHExHistory()
     return TRUE;
 }
 
+BOOLEAN InitNtUWnfSDHistory()
+{
+    NtUWnfSDBuffer = (NtUWnfSDEntry*)ExAllocatePoolWithTag(
+        NonPagedPool,
+        NTUWNFSD_BUFFER_SIZE * sizeof(NtUWnfSDEntry),
+        ActionHistoryTag
+    );
+    if (NULL == NtUWnfSDBuffer) {
+        return FALSE;
+    }
+    ExInitializeResourceLite(&NtUWnfSDLock);
+    return TRUE;
+}
+
 BOOLEAN CleanupActionHistory()
 {
     ExDeleteResourceLite(&NtWVMLock);
@@ -126,6 +144,7 @@ BOOLEAN CleanupActionHistory()
     ExDeleteResourceLite(&NtUserSWLPLock);
     ExDeleteResourceLite(&NtUserSPLock);
     ExDeleteResourceLite(&NtUserSWHExLock);
+    ExDeleteResourceLite(&NtUWnfSDLock);
     return TRUE;
 }
 
@@ -137,6 +156,7 @@ BOOLEAN InitActionHistory()
     InitNtUserSWLPHistory();
     InitNtUserSPHistory();
     InitNtUserSWHExHistory();
+    InitNtUWnfSDHistory();
     return TRUE;
 }
 
@@ -448,6 +468,47 @@ NtUserSWHExEntry* FindNtSetWindowHookExEntry(WCHAR *pModule)
     return entry;
 }
 
+BOOLEAN AddNtUpdateWnfStateDataEntry(
+    ULONG CallerPid,
+    VOID* Buffer,
+    ULONG Length
+)
+{
+    if (FALSE == ExAcquireResourceExclusiveLite(&NtUWnfSDLock, TRUE)) {
+        return FALSE;
+    }
+    NtUWnfSDBuffer[freeNtUWnfSDIdx] = { CallerPid, Buffer, Length };
+    freeNtUWnfSDIdx = (freeNtUWnfSDIdx + 1) % NTUSERSP_BUFFER_SIZE;
+    ExReleaseResourceLite(&NtUWnfSDLock);
+    return TRUE;
+}
+
+// Caller must deallocate NtUWnfSDEntry
+NtUWnfSDEntry* FindAddNtUpdateWnfStateDataEntry(ULONG CallerPid)
+{
+    NtUWnfSDEntry* entry = NULL;
+    if (FALSE == ExAcquireResourceExclusiveLite(&NtUWnfSDLock, TRUE)) {
+        return NULL;
+    }
+
+    for (auto i = 0; i < NTUSERSP_BUFFER_SIZE; i++) {
+        if (CallerPid == NtUWnfSDBuffer[i].CallerPid) {
+            entry = (NtUWnfSDEntry*)ExAllocatePoolWithTag(
+                NonPagedPool,
+                sizeof(NtUWnfSDEntry),
+                ActionHistoryTag);
+            if (NULL == entry) {
+                ExReleaseResourceLite(&NtUWnfSDLock);
+                return NULL;
+            }
+            RtlCopyMemory(entry, &NtUWnfSDBuffer[i], sizeof(NtUWnfSDEntry));
+            break;
+        }
+    }
+    ExReleaseResourceLite(&NtUWnfSDLock);
+    return entry;
+}
+
 BOOLEAN CheckWriteSuspendHistoryForSetThrCtx(
     ULONG callerPid, 
     ULONG targetPid,
@@ -461,6 +522,23 @@ BOOLEAN CheckWriteSuspendHistoryForSetThrCtx(
                 callerPid, targetTid, targetPid);
         }
         ExFreePool(stEntry);
+    }
+    else {
+        return false;
+    }
+    return true;
+}
+
+BOOLEAN CheckPriorWnfStateUpdate(ULONG callerPid, ULONG targetPid)
+{
+    NtUWnfSDEntry* entry = FindAddNtUpdateWnfStateDataEntry(callerPid);
+    if (NULL != entry) {
+        if (NULL == entry->Buffer && 0 == entry->Length) {
+            alertf("[+] FalconEye: **************************Alert**************************: \n"
+                "Attacker pid %d updating WNF state in victim pid %d \n",
+                callerPid, targetPid);
+        }
+        ExFreePool(entry);
     }
     else {
         return false;
