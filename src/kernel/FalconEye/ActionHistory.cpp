@@ -563,6 +563,13 @@ BOOLEAN CheckWriteSuspendHistoryForSetThrCtx(
 
 BOOLEAN CheckPriorWnfStateUpdate(ULONG callerPid, ULONG targetPid)
 {
+    // check for prior memory writes
+    NtWVMEntry* wvmEntry = FindNtWriteVirtualMemoryEntry(callerPid, targetPid);
+    if (NULL == wvmEntry) {
+        return FALSE;
+    }
+    ExFreePool(wvmEntry);
+
     NtUWnfSDEntry* entry = FindNtUpdateWnfStateDataEntry(callerPid);
     if (NULL != entry) {
         if (NULL == entry->Buffer && 0 == entry->Length) {

@@ -116,8 +116,8 @@ NTSTATUS DetourNtWriteVirtualMemory(
         GetActionPids(ProcessHandle, &callerPid, &targetPid);
         alertf("FalconEye: DetourNtWriteVirtualMemory: callerPid %d targetPid %d BaseAddr %p.\n", 
             callerPid, targetPid, BaseAddress);
-        AddNtWriteVirtualMemoryEntry(callerPid, targetPid, BaseAddress, Buffer, NumberOfBytesToWrite);
         CheckPriorWnfStateUpdate(callerPid, targetPid);
+        AddNtWriteVirtualMemoryEntry(callerPid, targetPid, BaseAddress, Buffer, NumberOfBytesToWrite);
         
         // Check if the address being written to is in kernelbase.dll
         if (IsAddressInKernelBase((PCHAR)BaseAddress))
@@ -240,7 +240,8 @@ NTSTATUS DetourNtQueueApcThread(
     _In_ PIO_STATUS_BLOCK     ApcStatusBlock,
     _In_ ULONG                ApcReserved)
 {
-    if (SELF_PROCESS_HANDLE != ThreadHandle) {
+    //if (SELF_PROCESS_HANDLE != ThreadHandle) {
+    {
         ULONG callerPid = 0, targetPid = 0;
         GetActionPidsByThread(ThreadHandle, &callerPid, &targetPid);
         ULONG api = IsKnownAPIOffset((PCHAR)ApcRoutine);
@@ -251,18 +252,20 @@ NTSTATUS DetourNtQueueApcThread(
                 "Possible Atombombing by attacker pid %d in victim pid %d with QueueApcThread for GlobalGetAtom routine %p\n",
                 callerPid, targetPid, ApcRoutine);
             alertf("\n");
-        }
-        if (eSetThreadCtx == api) {
+        } else if (eSetThreadCtx == api) {
             alertf("FalconEye: DetourNtQueueApcThread: callerPid %d targetPid %d ApcRoutine %p \n",
                 callerPid, targetPid, ApcRoutine);
             alertf("\n[+] FalconEye: **************************Alert**************************: \n"
-                "Remote Threat Context set by attacker pid %d in victim pid %d with QueueApcThread with routine %p\n",
+                "Remote Threat Context set by attacker pid %d in victim pid %d with QueueApcThread with SetThreadContext routine %p\n",
                 callerPid, targetPid, ApcRoutine);
             alertf("\n");
-        }
-        else {
-            kprintf("FalconEye: DetourNtQueueApcThread: callerPid %d targetPid %d ApcRoutine %p \n",
+        } else if (eMemsetAddr == api) {
+            alertf("FalconEye: DetourNtQueueApcThread: callerPid %d targetPid %d ApcRoutine %p \n",
                 callerPid, targetPid, ApcRoutine);
+            alertf("\n[+] FalconEye: **************************Alert**************************: \n"
+                "Possible Stackbombing by attacker pid %d in victim pid %d with QueueApcThread for memset routine %p\n",
+                callerPid, targetPid, ApcRoutine);
+            alertf("\n");
         }
     }
     return NtQueueApcThreadOrigPtr(ThreadHandle, ApcRoutine, ApcRoutineContext, ApcStatusBlock, ApcReserved);

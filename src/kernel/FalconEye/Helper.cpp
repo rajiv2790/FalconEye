@@ -158,6 +158,11 @@ ULONG IsKnownAPIOffset(PCHAR pAddr)
             pAddr);
         return eGetProcAddr;
     }
+    else if (pAddr == (PCHAR)ntdllBase + MEMSET_OFFSET) {
+        alertf("FalconEye: IsKnownAPIOffset: Addr %p matched memset\n",
+            pAddr);
+        return eMemsetAddr;
+    }
     else if (pAddr == (PCHAR)kernel32Base + SETTHREADCTX_OFFSET) {
         alertf("FalconEye: IsKnownAPIOffset: Addr %p matched SetThreadContext\n",
             pAddr);

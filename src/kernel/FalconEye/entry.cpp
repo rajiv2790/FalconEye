@@ -182,6 +182,10 @@ void __fastcall SyscallStub(
 	void** DetourAddress = (void**)GetDetourFunction(SystemCallIndex);
 	if (DetourAddress) {
 		//kprintf("[+] FalconEye: SYSCALL %lu: DetourAddr 0x%p \n", SystemCallIndex, DetourAddress);
+		// Open process pid map exception for NtQueueUserApc
+		if (0x45 == SystemCallIndex) {
+			*SystemCallFunction = DetourAddress;
+		}
 		// If the aPID is present in OpenProcessTable, only then go through detour
 		HANDLE aPID = PsGetCurrentProcessId();
 		OpenProcessNode node = { aPID, NULL };

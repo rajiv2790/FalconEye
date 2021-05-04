@@ -14,6 +14,7 @@
 #define LOADLIBEXW_OFFSET   0x001a200
 #define LOADLIBEXA_OFFSET   0x001e550
 
+#define MEMSET_OFFSET       0x00a3cc0
 #define GETPROC_OFFSET      0x001a360
 #define SETTHREADCTX_OFFSET 0x0036a30
 
@@ -29,7 +30,8 @@ enum {
     eGlobalAddAtom,
     eLoadLibrary,
     eSetThreadCtx,
-    eGetProcAddr
+    eGetProcAddr,
+    eMemsetAddr
 };
 
 typedef struct _VolDeviceEntry {
