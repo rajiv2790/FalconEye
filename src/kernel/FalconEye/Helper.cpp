@@ -166,6 +166,18 @@ ULONG IsKnownAPIOffset(PCHAR pAddr)
     return eUnknownApi;
 }
 
+BOOLEAN IsAddressInKernelBase(PCHAR pAddr)
+{
+    if (kernelbaseBase != NULL && kernelbaseEnd != NULL)
+    {
+        if ((pAddr >= (PCHAR)kernelbaseBase) && (pAddr <= (PCHAR)kernelbaseEnd))
+        {
+            return TRUE;
+        }
+    }
+    return FALSE;
+}
+
 BOOLEAN IsValidPEHeader(CHAR* buffer, size_t size)
 {
     IMAGE_DOS_HEADER* idh = (IMAGE_DOS_HEADER*)buffer;

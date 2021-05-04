@@ -117,7 +117,18 @@ NTSTATUS DetourNtWriteVirtualMemory(
         alertf("FalconEye: DetourNtWriteVirtualMemory: callerPid %d targetPid %d BaseAddr %p.\n", 
             callerPid, targetPid, BaseAddress);
         AddNtWriteVirtualMemoryEntry(callerPid, targetPid, BaseAddress, Buffer, NumberOfBytesToWrite);
-        CheckPriorWnfStateUpdate(callerPid, targetPid);
+        //CheckPriorWnfStateUpdate(callerPid, targetPid);
+        
+        // Check if the address being written to is in kernelbase.dll
+        if (IsAddressInKernelBase((PCHAR)BaseAddress))
+        {
+            alertf("\n[+] FalconEye: **************************Alert**************************: \n"
+                "Possible Ctrl-Inject attack: Attacker pid %llu writing to KernelBase.dll in victim pid %llu at address %p\n",
+                callerPid,
+                targetPid,
+                BaseAddress);
+            alertf("\n");
+        }
     }
     return NtWriteVirtualMemoryOrigPtr(ProcessHandle, BaseAddress, Buffer, NumberOfBytesToWrite, NumberOfBytesWritten);
 }
@@ -521,8 +532,8 @@ PVOID GetDetourFunction(unsigned int idx)
         return DetourNtFlushInstructionCache;
     case 0x4e:
         return DetourNtCreateThread;
-    case 0x1C8: //0x1CE:
-        return DetourNtUpdateWnfStateData;
+    //case 0x1C8: //0x1CE:
+        //return DetourNtUpdateWnfStateData;
     case 0x104F:
         return DetourNtUserSetProp;
     case 0x108C:

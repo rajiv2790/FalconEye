@@ -57,3 +57,5 @@ src/kernel/libinfinityhook/x64/Debug/libinfinityhook.Build.CppClean.log
 *.db-wal
 *.tlog
 *.opendb
+*.log
+src/kernel/FalconEye/x64/Debug/FalconEye.Build.CppClean.log

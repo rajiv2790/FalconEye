@@ -2,6 +2,7 @@
 #include "NtDefs.h"
 #include "entry.h"
 
+//
 BOOLEAN CheckMemImageByAddress(PVOID ptr, HANDLE pid)
 {
     NTSTATUS status = STATUS_SUCCESS;
@@ -25,6 +26,10 @@ BOOLEAN CheckMemImageByAddress(PVOID ptr, HANDLE pid)
     else
     {
         status = ZwOpenProcess(&PHANDLE, PROCESS_ALL_ACCESS, &oa, &cid);
+        if (status != STATUS_SUCCESS)
+        {
+            kprintf("[-] : Open Process Failed: %llu. Status %x\n", pid, status);
+        }
     }
 
     //kprintf("[FalconEye] : CheckMemImage for %p.\n", ptr);

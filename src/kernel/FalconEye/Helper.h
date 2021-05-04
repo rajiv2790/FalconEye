@@ -39,6 +39,8 @@ typedef struct _VolDeviceEntry {
 
 extern PVOID64 kernel32Base;
 extern PVOID64 ntdllBase;
+extern PVOID64 kernelbaseBase;
+extern PVOID64 kernelbaseEnd;
 ULONG GetProcessIdByHandle(HANDLE process);
 ULONG GetThreadIdByHandle(HANDLE thread);
 ULONG GetProcessIdByThreadHandle(HANDLE thread);
@@ -46,6 +48,7 @@ HANDLE GetProcessHandleByThreadHandle(HANDLE thread);
 BOOLEAN GetActionPids(HANDLE ProcessHandle, ULONG* pCallerPid, ULONG* pTargetPid);
 BOOLEAN GetActionPidsByThread(HANDLE ThreadHandle, ULONG* pCallerPid, ULONG* pTargetPid);
 ULONG IsKnownAPIOffset(PCHAR pAddr);
+BOOLEAN IsAddressInKernelBase(PCHAR pAddr);
 BOOLEAN IsValidPEHeader(CHAR* buffer, size_t size);
 BOOLEAN IsValidDllPath(CHAR* buffer, size_t size);
 BOOLEAN GetVolumeList();

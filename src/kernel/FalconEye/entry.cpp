@@ -27,6 +27,8 @@ PVOID64 NtBase;
 PVOID64 ntdllBase;
 PVOID64 kernel32Base;
 PVOID64 kernel32wow64Base;
+PVOID64 kernelbaseBase;
+PVOID64 kernelbaseEnd;
 
 BOOLEAN bFELoadImageCallbackInstalled = FALSE;
 PVOID pKernel32 = NULL;
@@ -282,6 +284,7 @@ FELoadImageCallback(
 	pKernel32 = ImageInfo->ImageBase;
 	UNICODE_STRING kernel32 = RTL_CONSTANT_STRING(L"kernel32.dll");
 	UNICODE_STRING ntdllStr = RTL_CONSTANT_STRING(L"ntdll.dll");
+	UNICODE_STRING kernelbaseStr = RTL_CONSTANT_STRING(L"KernelBase.dll");
 	
 	if (!kernel32Base)
 	{
@@ -333,6 +336,32 @@ FELoadImageCallback(
 		{
 			ntdllBase = ImageInfo->ImageBase;
 			kprintf("[+] falconeye: ntdll Base found %wZ, %p\n", FullImageName, ntdllBase);
+		}
+	}
+	if (!kernelbaseBase)
+	{
+		// Check if the image loaded is 64 bit
+		// Note that the bit check cant be done via ImageNtHeaders->OptionalHeaders,
+		// because this value would be for the image loaded, and the image is always seen as 64 bit.
+		// WOW64 does some magic later
+
+		ULONG_PTR process32Bit = 0;
+
+		if (!ZwQueryInformationProcess((HANDLE)-1,
+			ProcessWow64Information, // 0x1A 
+			&process32Bit,
+			sizeof(process32Bit),
+			NULL))
+		{
+			if (!process32Bit)
+			{
+				if (compareFilename(FullImageName, kernelbaseStr, TRUE) == 0)
+				{
+					kernelbaseBase = pKernel32;
+					kernelbaseEnd = (PCHAR)pKernel32 + ImageInfo->ImageSize;
+					kprintf("[+] falconeye: Kernel32 Base found %wZ, %p\n", FullImageName, pKernel32);
+				}
+			}
 		}
 	}
 	if (NULL != FullImageName) {
