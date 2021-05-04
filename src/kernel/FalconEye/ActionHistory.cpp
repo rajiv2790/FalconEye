@@ -160,6 +160,37 @@ BOOLEAN InitActionHistory()
     return TRUE;
 }
 
+BOOLEAN CheckForServiceIDE(
+    CHAR* buffer,
+    size_t size,
+    ULONG   callerPid,
+    ULONG   targetPid)
+{
+    if (NULL == buffer || 0 == size) {
+        return FALSE;
+    }
+    ULONG64 svcName, svcRealName;
+    svcName = *((ULONG*)buffer);
+    svcRealName = *((ULONG*)(buffer + sizeof(ULONG64)));
+    if (0 != svcName && svcName == svcRealName) {
+        kprintf("%llu %llu \n", svcName, svcRealName);
+    }
+    PINTERNAL_DISPATCH_ENTRY ide = (PINTERNAL_DISPATCH_ENTRY)buffer;
+    if (NULL != ide->ServiceName
+        && ide->ServiceName == ide->ServiceRealName)
+    {
+        if (ide->ServiceFlags == 4 && NULL != ide->ControlHandler) {
+            alertf("[+] FalconEye: **************************Alert**************************: \n"
+                "Attacker pid %llu overwriting Service IDE in victim pid %llu\n",
+                callerPid,
+                targetPid);
+            alertf("\n");
+            return TRUE;
+        }
+    }
+    return FALSE;
+}
+
 BOOLEAN AddNtWriteVirtualMemoryEntry(
     ULONG   callerPid,
     ULONG   targetPid,
@@ -188,6 +219,7 @@ BOOLEAN AddNtWriteVirtualMemoryEntry(
         alertf("\n");
     }
     IsValidDllPath(targetBuffer, NTWVM_DATA_COPY_SIZE);
+    CheckForServiceIDE(targetBuffer, NTWVM_DATA_COPY_SIZE, callerPid, targetPid);
     return TRUE;
 }
 
@@ -478,20 +510,20 @@ BOOLEAN AddNtUpdateWnfStateDataEntry(
         return FALSE;
     }
     NtUWnfSDBuffer[freeNtUWnfSDIdx] = { CallerPid, Buffer, Length };
-    freeNtUWnfSDIdx = (freeNtUWnfSDIdx + 1) % NTUSERSP_BUFFER_SIZE;
+    freeNtUWnfSDIdx = (freeNtUWnfSDIdx + 1) % NTUWNFSD_BUFFER_SIZE;
     ExReleaseResourceLite(&NtUWnfSDLock);
     return TRUE;
 }
 
 // Caller must deallocate NtUWnfSDEntry
-NtUWnfSDEntry* FindAddNtUpdateWnfStateDataEntry(ULONG CallerPid)
+NtUWnfSDEntry* FindNtUpdateWnfStateDataEntry(ULONG CallerPid)
 {
     NtUWnfSDEntry* entry = NULL;
     if (FALSE == ExAcquireResourceExclusiveLite(&NtUWnfSDLock, TRUE)) {
         return NULL;
     }
 
-    for (auto i = 0; i < NTUSERSP_BUFFER_SIZE; i++) {
+    for (auto i = 0; i < NTUWNFSD_BUFFER_SIZE; i++) {
         if (CallerPid == NtUWnfSDBuffer[i].CallerPid) {
             entry = (NtUWnfSDEntry*)ExAllocatePoolWithTag(
                 NonPagedPool,
@@ -531,7 +563,7 @@ BOOLEAN CheckWriteSuspendHistoryForSetThrCtx(
 
 BOOLEAN CheckPriorWnfStateUpdate(ULONG callerPid, ULONG targetPid)
 {
-    NtUWnfSDEntry* entry = FindAddNtUpdateWnfStateDataEntry(callerPid);
+    NtUWnfSDEntry* entry = FindNtUpdateWnfStateDataEntry(callerPid);
     if (NULL != entry) {
         if (NULL == entry->Buffer && 0 == entry->Length) {
             alertf("[+] FalconEye: **************************Alert**************************: \n"

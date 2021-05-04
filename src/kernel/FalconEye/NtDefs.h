@@ -86,3 +86,17 @@ typedef struct _WNF_TYPE_ID {
 typedef const WNF_TYPE_ID* PCWNF_TYPE_ID;
 
 typedef ULONG WNF_CHANGE_STAMP, * PWNF_CHANGE_STAMP;
+
+typedef struct _INTERNAL_DISPATCH_ENTRY {
+    LPWSTR                  ServiceName;
+    LPWSTR                  ServiceRealName;
+    LPWSTR                  ServiceName2;       // Windows 10
+    PVOID                   ServiceStartRoutine;
+    PVOID                   ControlHandler;
+    HANDLE                  StatusHandle;
+    DWORD64                 ServiceFlags;        // 64-bit on windows 10
+    DWORD64                 Tag;
+    HANDLE                  MainThreadHandle;
+    DWORD64                 dwReserved;
+    DWORD64                 dwReserved2;
+} INTERNAL_DISPATCH_ENTRY, * PINTERNAL_DISPATCH_ENTRY;

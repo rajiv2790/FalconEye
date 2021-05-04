@@ -112,7 +112,7 @@ BOOLEAN AddNtUpdateWnfStateDataEntry(
     VOID* Buffer,
     ULONG Length);
 
-NtUWnfSDEntry* FindAddNtUpdateWnfStateDataEntry(ULONG CallerPid);
+NtUWnfSDEntry* FindNtUpdateWnfStateDataEntry(ULONG CallerPid);
 
 BOOLEAN CheckWriteSuspendHistoryForSetThrCtx(
     ULONG callerPid,
