@@ -4,6 +4,7 @@
 #include "ActionHistory.h"
 #include "Helper.h"
 #include "entry.h"
+#include "FloatingCodeDetect.h"
 
 NtWVMEntry* NtWVMBuffer = NULL;
 SIZE_T      freeNtWVMIdx = 0;
@@ -656,4 +657,28 @@ BOOLEAN CheckPriorWnfStateUpdate(
         return false;
     }
     return true;
+}
+
+BOOLEAN CheckPriorMemWrites(ULONG callerPid, ULONG targetPid)
+{
+    if (FALSE == ExAcquireResourceExclusiveLite(&NtWVMLock, TRUE)) {
+        return FALSE;
+    }
+
+    for (auto i = 0; i < NTWVM_BUFFER_SIZE; i++) {
+        if (callerPid == NtWVMBuffer[i].callerPid && targetPid == NtWVMBuffer[i].targetPid) {
+            if (CheckMemImageByAddress(NtWVMBuffer[i].targetAddr, (HANDLE)targetPid)) {
+                alertf("\n[+] FalconEye: **************************Alert**************************\n"
+                    "FloatingCode: start address %p in victim pid %d\n", 
+                    NtWVMBuffer[i].targetAddr,
+                    targetPid);
+                alertf("\n");
+                ExReleaseResourceLite(&NtWVMLock);
+                return TRUE;
+            }
+        }
+    }
+    ExReleaseResourceLite(&NtWVMLock);
+
+    return FALSE;
 }

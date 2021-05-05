@@ -123,3 +123,5 @@ BOOLEAN CheckPriorWnfStateUpdate(
     ULONG callerPid, 
     ULONG targetPid,
     HANDLE targetPs);
+
+BOOLEAN CheckPriorMemWrites(ULONG callerPid, ULONG targetPid);

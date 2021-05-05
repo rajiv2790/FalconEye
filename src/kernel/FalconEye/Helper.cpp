@@ -447,3 +447,41 @@ LONG compareFilename(
     }
     return ret;
 }
+
+ULONG CheckALPCPort(PUNICODE_STRING serverPort)
+{
+    if (NULL == serverPort) {
+        return 0;
+    }
+    if (NULL == serverPort->Buffer || 0 == serverPort->Length) {
+        return 0;
+    }
+
+    // \BaseNamedObjects\[CoreUI]-PID(9052)-TID(2720)
+    WCHAR prefix[] = L"\\BaseNamedObjects\\[CoreUI]-PID(";
+    WCHAR pid[8] = { 0 };
+    ULONG len = (ULONG)(wcslen(prefix) * sizeof(WCHAR));
+    ULONG end = 0, alpcPid = 0;
+    if (len == RtlCompareMemory(serverPort->Buffer, prefix, len)) {
+        WCHAR* buffer = serverPort->Buffer;
+        for (auto i = len/sizeof(WCHAR); buffer[i] != L'\0'; i++) {
+            if (buffer[i] == L')') {
+                end = (ULONG)i;
+                break;
+            }
+        }
+        if (0 != end) {
+            UNICODE_STRING pidStr;
+            RtlCopyMemory(
+                &pid, 
+                buffer + len / sizeof(WCHAR), 
+                (end*sizeof(WCHAR) - len));
+            kprintf("[+] FalconEye: ALPC port pid : %S\n", pid);
+            RtlInitUnicodeString(&pidStr, pid);
+            RtlUnicodeStringToInteger(&pidStr, 0, &alpcPid);
+            return alpcPid;
+        }
+    }
+
+    return 0;
+}

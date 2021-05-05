@@ -63,3 +63,4 @@ BOOLEAN ConvertDosPathToDevicePath(PWCHAR dosPath, PWCHAR devicePath);
 LONG compareFilename(
     PUNICODE_STRING  FullImageName,
     UNICODE_STRING str, BOOLEAN bGetLastToken);
+ULONG CheckALPCPort(PUNICODE_STRING serverPort);

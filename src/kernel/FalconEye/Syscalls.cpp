@@ -343,7 +343,18 @@ NTSTATUS DetourNtConnectPort(
     if (NULL != ServerPortName) {
         kprintf("FalconEye: DetourNtConnectPort: callerPid %d serverPort %wZ connectionInfo %p.\n",
             callerPid, ServerPortName, ConnectionInfo);
+        ULONG targetPid = CheckALPCPort(ServerPortName);
+        if (0 != targetPid) {
+            if (CheckPriorMemWrites(callerPid, targetPid)) {
+                alertf("FalconEye: DetourNtConnectPort: callerPid %d serverPort %wZ connectionInfo %p.\n",
+                    callerPid, ServerPortName, ConnectionInfo);
+                alertf("\n[+] FalconEye: **************************Alert**************************: \n"
+                    "Possible ALPC callback overwrite by attacker pid %d in victim pid %d \n",
+                    callerPid, targetPid);
+            }
+        }
     }
+
     return NtConnectPortOrigPtr(ClientPortHandle, ServerPortName, SecurityQos, ClientSharedMemory, ServerSharedMemory, MaximumMessageLength, ConnectionInfo, ConnectionInfoLength);
 }
 
