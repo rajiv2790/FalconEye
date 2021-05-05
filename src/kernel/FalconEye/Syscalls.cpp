@@ -460,13 +460,10 @@ LONG_PTR DetourNtUserSetWindowLongPtr(
                 entry->targetPid,
                 payloadAddress);
             alertf("\n");
-            //kprintf("FalconEye: DetourNtUserSetProp: Data %p NtWVMEntry %p TargetPid %d FloatingCode %x\n", Data, entry->targetAddr, entry->targetPid, payloadAddress);
         }
 
         ExFreePool(entry);
     }
-
-    AddNtUserSetWindowLongPtrEntry(hWnd, Index, NewValue);
     return NtUserSetWindowLongPtrOrigPtr(hWnd, Index, NewValue, Ansi);
 }
 
