@@ -8,11 +8,11 @@ You can check our presentation at [2021 Blackhat ASIA Arsenal](https://www.black
 ## Project Overview
 
 ### Detection Coverage
-| Technique     | Status        | Detection  |
-| ------------- | ------------- | -----------|
-| Atombombing   | &check;       | AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA  |
-| Instrumentation callback injection      | &check;        |    |
-| PROPGate | &check;       |    |
+| Technique                          | Status   | Detection  |
+| -------------                      | -------- | -----------|
+| Atombombing                        | &check;  | Hook QueueUserAPC and look for GlobalGetAtom  |
+| Instrumentation callback injection | &check;  | Detected when a new thread is created with floating code |
+| PROPGate                           | &check;       |    |
 | CreateRemoteThread with LoadLibrary| &check;       |    |
 | CreateRemoteThread with MapViewOfFile | &check;       |    |
 | Suspend-Injection-Resume | &check;       |    |
@@ -30,7 +30,7 @@ You can check our presentation at [2021 Blackhat ASIA Arsenal](https://www.black
 | Shellcode injection | &check;       |    |
 | Image Mapping | &check;       |    |
 | Thread Reuse | &check;       |    |
-| GhostWriting | &check;       |    |
+| GhostWriting |        |    |
 | Process Hollowing | &check;       |    |
 
 ###Architecture Overview
