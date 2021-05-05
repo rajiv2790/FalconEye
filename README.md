@@ -9,21 +9,24 @@ You can check our presentation at [2021 Blackhat ASIA Arsenal](https://www.black
 
 ### Detection Coverage
 
-The table below shows the implementation status and the detection logic for the
+The table below shows the implementation status and the detection logic for the various
 process injection techniques. WPM stands for WriteProcessMemory. To test the
 detection, one can refer to the references section. 
 
-| Technique                                     | Status  | Detection  |
-| -------------                                 | ------- | -----------|
-| Atombombing                                   | &check; | Hook QueueUserAPC and look for GlobalGetAtom  |
-| Instrumentation callback injection            | &check; | Detect if a new thread is created with floating code |
-| PROPGate                                      | &check; | Detect if a new thread is created with floating code and if PE header is being written into victim|
-| CreateRemoteThread with LoadLibrary           | &check; | Hook SetProp function and match the previous WPM calls to get the address of floating code |
-| CreateRemoteThread with MapViewOfFile         | &check; | Detected using PE header written into target process memory |
-| Suspend-Injection-Resume                      | &check; | New thread with start address pointing to LoadLibrary |
-| QueueUserAPC                                  | &check; | DLL path being written via WPM |
-| SetWindowLong (Extra window memory injection) | &check; | QueueUserApc for memset into victim process |
-| Unmap + Overwrite                             | &check; | Unmapping ntdll |
+| Technique                                     | Status  | Detection  | POC Used  |
+| -------------                                 | ------- | -----------| ----------|
+| Atombombing                                   | &check; | Hook QueueUserAPC and look for GlobalGetAtom family of functions | Pinjectra |
+| Instrumentation callback injection            | &check; | Detect if a new thread is created from floating code | https://github.com/antonioCoco/Mapping-Injection |
+| Reflective DLL Injection                      | &check; | Detect if a new thread is created from floating code and if PE header is being written into victim| MInjector |
+| PROPagate                                     | &check; | Hook SetProp to get the address of the property being written and corelate with the previous WPM calls to get the address of floating code | Pinjectra |
+| Process Hollowing                             | &check; | Detected using PE header written into target process memory | MInjector |
+| CreateRemoteThread with LoadLibrary           | &check; | New thread with start address pointing to LoadLibrary. MInjector version also writes DLL path using WPM which is also detected | MInjector, Pinjectra |
+| CreateRemoteThread with MapViewOfFile         | &check; | Detect if a new thread is created from floating code | Pinjectra |
+| Suspend-Inject-Resume                         | &check; | Detect if a new thread is created from floating code(MInjector). DLL Path being written via WPM (MInjector). Detect if context set on a previously suspended thread (Pinjectra) | MInjector, Pinjectra |
+| QueueUserAPC                                  | &check; | DLL path being written via WPM | MInjector |
+| QueueUserAPC with memset (Stackbombing)       | &check; | Hook QueueUserAPC and look for memset | Pinjectra |
+| SetWindowLong (Extra window memory injection) | &check; | Hook SetWindowLong to get the address of the function pointer being written and corelate with the previous WPM calls to get the address of floating code | Pinjectra |
+| Unmap + Overwrite                             | &check; | Alert if attacker process is unmapping ntdll from the victim | Pinjectra |
 | Kernel Ctrl Table                             | &check; | Detect if NtWriteVirtualMemory is overwriting KernelCallbackTable field in the PEB of the victim |
 | USERDATA                                      | &check; | Check if WPM data is in conhost.exe range. If so check if any function pointers matcher earlier WPM address   |
 | Ctrl-inject                                   | &check; | Detect if the attacker does WPM in victim's KernelBase.dll range   |
