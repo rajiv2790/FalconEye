@@ -90,7 +90,6 @@ implementations
 
 ## References
 [Itzik Kotler and Amit Klein. Process Injection Techniques - Gotta Catch Them All, Blackhat USA Briengs, 2019](https://www.blackhat.com/us-19/briefings/schedule/#process-injection-techniques---gotta-catch-them-all-16010)
-
 [Atombombing: Brand new code injection for windows, 2016](https://blog.ensilo.com/atombombing-brand-new-code-injection-for-windows)
 
 [Propagate - a new code injection trick, 2017](http://www.hexacorn.com/blog/2017/10/26/propagate-a-new-code-injection-trick/)
