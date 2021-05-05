@@ -109,5 +109,7 @@ implementations
 
 [Windows process injection: Service control handler, 2018](https://modexp.wordpress.com/2018/08/30/windows-process-injection-control-handler/)
 
+[Marcos Oviedo. Memhunter - Automated hunting of memory resident malware at scale. Defcon Demo Labs, 2019](https://github.com/marcosd4h/memhunter)
+
 ## License Terms
 FalconEye is licensed to you under [Apache 2.0](COPYING) open source license. 
