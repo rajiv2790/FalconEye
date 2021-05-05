@@ -29,6 +29,8 @@ PVOID64 kernel32Base;
 PVOID64 kernel32wow64Base;
 PVOID64 kernelbaseBase;
 PVOID64 kernelbaseEnd;
+PVOID64 conhostBase;
+PVOID64 conhostEnd;
 
 BOOLEAN bFELoadImageCallbackInstalled = FALSE;
 PVOID pKernel32 = NULL;
@@ -288,6 +290,7 @@ FELoadImageCallback(
 	pKernel32 = ImageInfo->ImageBase;
 	UNICODE_STRING kernel32 = RTL_CONSTANT_STRING(L"kernel32.dll");
 	UNICODE_STRING ntdllStr = RTL_CONSTANT_STRING(L"ntdll.dll");
+	UNICODE_STRING conhostStr = RTL_CONSTANT_STRING(L"conhost.exe");
 	UNICODE_STRING kernelbaseStr = RTL_CONSTANT_STRING(L"KernelBase.dll");
 	
 	if (!kernel32Base)
@@ -364,6 +367,27 @@ FELoadImageCallback(
 					kernelbaseBase = pKernel32;
 					kernelbaseEnd = (PCHAR)pKernel32 + ImageInfo->ImageSize;
 					kprintf("[+] falconeye: Kernel32 Base found %wZ, %p\n", FullImageName, pKernel32);
+				}
+			}
+		}
+	}
+	if (!conhostBase)
+	{
+		ULONG_PTR process32Bit = 0;
+
+		if (!ZwQueryInformationProcess((HANDLE)-1,
+			ProcessWow64Information, // 0x1A 
+			&process32Bit,
+			sizeof(process32Bit),
+			NULL))
+		{
+			if (!process32Bit)
+			{
+				if (compareFilename(FullImageName, conhostStr, TRUE) == 0)
+				{
+					conhostBase = ImageInfo->ImageBase;
+					conhostEnd = (PCHAR)conhostBase + ImageInfo->ImageSize;
+					kprintf("[+] falconeye: conhost range found: %wZ, %p - %p\n", FullImageName, conhostBase, conhostEnd);
 				}
 			}
 		}

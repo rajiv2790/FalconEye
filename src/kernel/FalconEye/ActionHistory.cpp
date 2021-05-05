@@ -191,6 +191,45 @@ BOOLEAN CheckForServiceIDE(
     return FALSE;
 }
 
+BOOLEAN IsAddrInConhostRange(PVOID64 addr)
+{
+    if (conhostBase < addr &&
+        conhostEnd > addr)
+    {
+        return TRUE;
+    }
+    return FALSE;
+}
+BOOLEAN CheckConhostVtableOverwrite(
+    ULONG callerPid, 
+    ULONG targetPid, 
+    CHAR* targetBuffer)
+{
+    ConsoleWindow* cw = (ConsoleWindow*)targetBuffer;
+    if (NULL != cw->EnableBothScrollBars && NULL != cw->GetWindowHandle) {
+        if (!IsAddrInConhostRange((PVOID64)cw->EnableBothScrollBars)
+            && !IsAddrInConhostRange((PVOID64)cw->GetWindowHandle))
+        {
+            return FALSE;
+        }
+    }
+
+    NtWVMEntry* wvmEntry = FindNtWriteVirtualMemoryEntryByAddress(
+        callerPid,
+        (PVOID)cw->GetWindowHandle);
+    if (NULL != wvmEntry) {
+        alertf("[+] FalconEye: **************************Alert**************************: \n"
+            "Attacker pid %d likely overwriting Console GetWindowHandle function in victim pid %d\n",
+            callerPid,
+            targetPid);
+        alertf("\n");
+        ExFreePool(wvmEntry);
+        return TRUE;
+    }
+    
+    return FALSE;
+}
+
 BOOLEAN AddNtWriteVirtualMemoryEntry(
     ULONG   callerPid,
     ULONG   targetPid,
@@ -220,6 +259,7 @@ BOOLEAN AddNtWriteVirtualMemoryEntry(
     }
     IsValidDllPath(targetBuffer, NTWVM_DATA_COPY_SIZE);
     CheckForServiceIDE(targetBuffer, NTWVM_DATA_COPY_SIZE, callerPid, targetPid);
+    CheckConhostVtableOverwrite(callerPid, targetPid, targetBuffer);
     return TRUE;
 }
 

@@ -252,3 +252,31 @@ typedef struct _PEB
 } PEB, * PPEB;
 
 extern "C" NTKERNELAPI PPEB NTAPI PsGetProcessPeb(IN PEPROCESS Process);
+
+typedef struct _vftable_t {
+    ULONG_PTR     EnableBothScrollBars;
+    ULONG_PTR     UpdateScrollBar;
+    ULONG_PTR     IsInFullscreen;
+    ULONG_PTR     SetIsFullscreen;
+    ULONG_PTR     SetViewportOrigin;
+    ULONG_PTR     SetWindowHasMoved;
+    ULONG_PTR     CaptureMouse;
+    ULONG_PTR     ReleaseMouse;
+    ULONG_PTR     GetWindowHandle;
+    ULONG_PTR     SetOwner;
+    ULONG_PTR     GetCursorPosition;
+    ULONG_PTR     GetClientRectangle;
+    ULONG_PTR     MapPoints;
+    ULONG_PTR     ConvertScreenToClient;
+    ULONG_PTR     SendNotifyBeep;
+    ULONG_PTR     PostUpdateScrollBars;
+    ULONG_PTR     PostUpdateTitleWithCopy;
+    ULONG_PTR     PostUpdateWindowSize;
+    ULONG_PTR     UpdateWindowSize;
+    ULONG_PTR     UpdateWindowText;
+    ULONG_PTR     HorizontalScroll;
+    ULONG_PTR     VerticalScroll;
+    ULONG_PTR     SignalUia;
+    ULONG_PTR     UiaSetTextAreaFocus;
+    ULONG_PTR     GetWindowRect;
+} ConsoleWindow;

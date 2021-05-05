@@ -43,6 +43,9 @@ extern PVOID64 kernel32Base;
 extern PVOID64 ntdllBase;
 extern PVOID64 kernelbaseBase;
 extern PVOID64 kernelbaseEnd;
+extern PVOID64 conhostBase;
+extern PVOID64 conhostEnd;
+
 ULONG GetProcessIdByHandle(HANDLE process);
 ULONG GetThreadIdByHandle(HANDLE thread);
 ULONG GetProcessIdByThreadHandle(HANDLE thread);
