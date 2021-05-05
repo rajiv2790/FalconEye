@@ -10,8 +10,8 @@ You can check our presentation at [2021 Blackhat ASIA Arsenal](https://www.black
 ### Detection Coverage
 | Technique     | Coverage      | Detection  |
 | ------------- | ------------- | -----------|
-| Atombombing   | [x]         |  |
-| Instrumentation callback injection      | [x]      |    |
+| Atombombing   | &check;         |  |
+| Instrumentation callback injection      | :white_check_mark:      |    |
 | Reflective DLL Injection | - [x]      |    |
 
 ###Architecture Overview
