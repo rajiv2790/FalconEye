@@ -5,6 +5,20 @@ injections.
 
 You can check our presentation at [2021 Blackhat ASIA Arsenal](https://www.blackhat.com/asia-21/arsenal/schedule/#falconeye-windows-process-injection-techniques---catch-them-all-22612) and [slides](https://github.com/rajiv2790/FalconEye/blob/main/2021BHASIA_FalconEye.pdf).
 
+## Project Overview
+
+![alt text](diagrams/FalconEye_Software_Architecture.png)
+
+## Files
+```bash
+.
+├── src 
+│   ├── FalconEye ---------------------------# FalconEye user and kernel space
+implementations
+│   └── libinfinityhook ---------------------# kernel module for infinity hook
+├── 2021BHASIA_FalconEye.pdf
+├── README.md
+```
 
 ## Getting Started
 
@@ -13,3 +27,8 @@ You can check our presentation at [2021 Blackhat ASIA Arsenal](https://www.black
 
 
 ## Tips
+
+## Software Requirements
+
+## License Terms
+FalconEye is licensed to you under [Apache 2.0](COPYING) open source license. 
