@@ -8,11 +8,30 @@ You can check our presentation at [2021 Blackhat ASIA Arsenal](https://www.black
 ## Project Overview
 
 ### Detection Coverage
-| Technique     | Coverage      | Detection  |
+| Technique     | Status      | Detection  |
 | ------------- | ------------- | -----------|
 | Atombombing   | &check;         |  |
 | Instrumentation callback injection      | &check;        |    |
-| Reflective DLL Injection | &check;       |    |
+| PROPGate | &check;       |    |
+| CreateRemoteThread with LoadLibrary| &check;       |    |
+| CreateRemoteThread with MapViewOfFile | &check;       |    |
+| Suspend-Injection-Resume | &check;       |    |
+| QueueUserAPC | &check;       |    |
+| QueueUserAPC with memset (Stackbombing) | &check;       |    |
+| SetWindowLong (Extra window memory injection) | &check;       |    |
+| Unmap + Overwrite | &check;       |    |
+| Kernel Ctrl Table | &check;       |    |
+| USERDATA | &check;       |    |
+| Ctrl-inject | &check;       |    |
+| ALPC Callback | &check;       |    |
+| WNF Callback | &check;       |    |
+| SetWindowsHook | &check;       |    |
+| Service Control | &check;       |    |
+| Shellcode injection | &check;       |    |
+| Image Mapping | &check;       |    |
+| Thread Reuse | &check;       |    |
+| GhostWriting | &check;       |    |
+| Process Hollowing | &check;       |    |
 
 ###Architecture Overview
 
