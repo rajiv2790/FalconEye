@@ -36,7 +36,9 @@ refereneces
 
 ###Architecture Overview
 Diagram
+
 ![alt text](diagrams/FalconEye_Software_Architecture.png)
+
 
 ## Files
 ```bash
