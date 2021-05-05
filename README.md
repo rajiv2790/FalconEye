@@ -8,30 +8,29 @@ You can check our presentation at [2021 Blackhat ASIA Arsenal](https://www.black
 ## Project Overview
 
 ### Detection Coverage
-| Technique                          | Status   | Detection  |
-| -------------                      | -------- | -----------|
-| Atombombing                        | &check;  | Hook QueueUserAPC and look for GlobalGetAtom  |
-| Instrumentation callback injection | &check;  | Detected when a new thread is created with floating code |
-| PROPGate                           | &check;       |    |
-| CreateRemoteThread with LoadLibrary| &check;       |    |
-| CreateRemoteThread with MapViewOfFile | &check;       |    |
-| Suspend-Injection-Resume | &check;       |    |
-| QueueUserAPC | &check;       |    |
-| QueueUserAPC with memset (Stackbombing) | &check;       |    |
-| SetWindowLong (Extra window memory injection) | &check;       |    |
-| Unmap + Overwrite | &check;       |    |
-| Kernel Ctrl Table | &check;       |    |
-| USERDATA | &check;       |    |
-| Ctrl-inject | &check;       |    |
-| ALPC Callback | &check;       |    |
-| WNF Callback | &check;       |    |
-| SetWindowsHook | &check;       |    |
-| Service Control | &check;       |    |
-| Shellcode injection | &check;       |    |
-| Image Mapping | &check;       |    |
-| Thread Reuse | &check;       |    |
-| GhostWriting |        |    |
-| Process Hollowing | &check;       |    |
+| Technique                                     | Status  | Detection  |
+| -------------                                 | ------- | -----------|
+| Atombombing                                   | &check; | Hook QueueUserAPC and look for GlobalGetAtom  |
+| Instrumentation callback injection            | &check; | Detect if a new thread is created with floating code |
+| PROPGate                                      | &check; | Detect if a new thread is created with floating code and if PE header is being written into victim|
+| CreateRemoteThread with LoadLibrary           | &check; | Hook SetProp function and match the previous WPM calls to get the address of floating code |
+| CreateRemoteThread with MapViewOfFile         | &check; | Detected using PE header written into target process memory |
+| Suspend-Injection-Resume                      | &check; | New thread with start address pointing to LoadLibrary |
+| QueueUserAPC                                  | &check; | DLL path being written via WPM |
+| SetWindowLong (Extra window memory injection) | &check; | QueueUserApc for memset into victim process |
+| Unmap + Overwrite                             | &check; | Unmapping ntdll |
+| Kernel Ctrl Table                             | &check; | Detect if NtWriteVirtualMemory is overwriting KernelCallbackTable field in the PEB of the victim |
+| USERDATA                                      |         |    |
+| Ctrl-inject                                   | &check; | Detect if the attacker does WPM in victim's KernelBase.dll range   |
+| ALPC Callback                                 |         |    |
+| WNF Callback                                  | &check; | WPM followed by UpdateWNFStateData call   |
+| SetWindowsHook                                | &check;       |    |
+| Service Control                               | &check; | WPM overwriting Service IDE. Can be made more precise   |
+| Shellcode injection                           | &check; | New thread started from floating code. DLL path being written by WPM    |
+| Image Mapping                                 | &check; | Thread started from floating code. PE header being written DLL path being written by WPM   |
+| Thread Reuse                                  | &check; |  Thread started from floating code. DLL path being written by WPM  |
+| GhostWriting                                  |         |    |
+| Process Hollowing                             | &check; |  Detect using PE header written into target process memory  |
 
 ###Architecture Overview
 
