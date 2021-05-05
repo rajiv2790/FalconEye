@@ -15,7 +15,7 @@ You can check our presentation at [2021 Blackhat ASIA Arsenal](https://www.black
 ├── src 
 │   ├── FalconEye ---------------------------# FalconEye user and kernel space
 implementations
-│   └── libinfinityhook ---------------------# kernel module for infinity hook
+│   └── libinfinityhook ---------------------# Kernel hook implementation
 ├── 2021BHASIA_FalconEye.pdf
 ├── README.md
 ```
