@@ -27,18 +27,18 @@ detection, one can refer to the references section.
 | QueueUserAPC with memset (Stackbombing)       | &check; | Hook QueueUserAPC and look for memset | Pinjectra |
 | SetWindowLong (Extra window memory injection) | &check; | Hook SetWindowLong to get the address of the function pointer being written and corelate with the previous WPM calls to get the address of floating code | Pinjectra |
 | Unmap + Overwrite                             | &check; | Alert if attacker process is unmapping ntdll from the victim | Pinjectra |
-| Kernel Ctrl Table                             | &check; | Detect if NtWriteVirtualMemory is overwriting KernelCallbackTable field in the PEB of the victim |
-| USERDATA                                      | &check; | Check if WPM data is in conhost.exe range. If so check if any function pointers matcher earlier WPM address   |
-| Ctrl-inject                                   | &check; | Detect if the attacker does WPM in victim's KernelBase.dll range   |
-| ALPC Callback                                 | &check; | Extract victim pid in NtConnectPort calls to ALPC port. For attacker-victim pid tuple check prior WPM calls and apply Floating code detection |
-| WNF Callback                                  | &check; | WPM followed by UpdateWNFStateData call   |
-| SetWindowsHook                                | &check;       |    |
-| Service Control                               | &check; | WPM overwriting Service IDE. Can be made more precise   |
-| Shellcode injection                           | &check; | New thread started from floating code. DLL path being written by WPM    |
-| Image Mapping                                 | &check; | Thread started from floating code. PE header being written DLL path being written by WPM   |
-| Thread Reuse                                  | &check; |  Thread started from floating code. DLL path being written by WPM  |
+| Kernel Ctrl Table                             | &check; | Detect if WPM is overwriting KernelCallbackTable field in the PEB of the victim | https://github.com/odzhan/injection/blob/master/kct |
+| USERDATA                                      | &check; | Check if WPM target address is in conhost.exe range. If so check if any relevant function pointers from conhost match previously stored WPM address | https://github.com/odzhan/injection/blob/master/conhost |
+| Ctrl-inject                                   | &check; | Detect if the attacker does WPM in victim's KernelBase.dll range   | Pinjectra |
+| ALPC Callback                                 | &check; | Extract victim pid in NtConnectPort calls to ALPC port. For attacker-victim pid tuple check prior WPM calls and apply Floating code detection | Pinjectra |
+| WNF Callback                                  | &check; | WPM followed by UpdateWNFStateData call   | https://github.com/odzhan/injection/tree/master/wnf |
+| SetWindowsHook                                | &check; | Save module paths registered in NtUserSetWindowsHookEx hook. Later when a module matching this path loads in a different process, generate alert | MInjector |
+| GhostWriting                                  | &check; | Detect if context is set (NtSetContextThread is called) on a previously suspended thread | Pinjectra |
+| Service Control                               | &check; | WPM overwriting Service IDE of a process (service) | https://github.com/odzhan/injection/tree/master/svcctrl |
+| Shellcode injection                           | &check; | New thread started from floating code. DLL path being written by WPM    | MInjector |
+| Image Mapping                                 | &check; | Thread started from floating code. PE header being written by WPM. DLL path being written by WPM | MInjector |
+| Thread Reuse                                  | &check; | Thread started from floating code. DLL path being written by WPM  | MInjector |
 | GhostWriting                                  |         |    |
-| Process Hollowing                             | &check; |  Detect using PE header written into target process memory  |
 
 
 ### Architecture Overview
