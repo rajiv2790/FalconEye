@@ -259,7 +259,7 @@ BOOLEAN CheckModuleInSetWindowsHookHistory(
 	PUNICODE_STRING  FullImageName,
 	HANDLE ProcessId)
 {
-	WCHAR module[260] = { 0 };
+	WCHAR module[MAX_PATH] = { 0 };
 	RtlCopyMemory(module, FullImageName->Buffer, FullImageName->Length);
 	NtUserSWHExEntry* entry = FindNtSetWindowHookExEntry(module);
 	if (NULL != entry && entry->Pid != (ULONG64)ProcessId) {
@@ -395,52 +395,6 @@ FELoadImageCallback(
 	if (NULL != FullImageName) {
 		CheckModuleInSetWindowsHookHistory(FullImageName, ProcessId);
 	}
-}
-
-/*
-* This function tokenizes the full file path
-* and compares the filename with the string supplied
-*/
-LONG compareFilename(
-	PUNICODE_STRING  FullImageName, 
-	UNICODE_STRING str, BOOLEAN bGetLastToken)
-{
-	LONG ret = 1;
-	UNICODE_STRING token, remainingToken;
-	//Tokenize the FullImageName and compare the last token
-	if (bGetLastToken)
-	{
-		FsRtlDissectName(*FullImageName, &token, &remainingToken);
-		while (token.Length != 0)
-		{
-			if (remainingToken.Length == 0)
-			{
-				break;
-			}
-			FsRtlDissectName(remainingToken, &token, &remainingToken);
-		}
-		ret = RtlCompareUnicodeString(&token, &str, TRUE);
-	}
-	//Tokenize the FullImageName and compare to the remaining string
-	//First token is discarded
-	else
-	{
-		FsRtlDissectName(*FullImageName, &token, &remainingToken);
-		while (token.Length != 0)
-		{
-			if (remainingToken.Length == 0)
-			{
-				break;
-			}
-			if (RtlCompareUnicodeString(&remainingToken, &str, TRUE) == 0)
-			{
-				ret = 0;
-				break;
-			}
-			FsRtlDissectName(remainingToken, &token, &remainingToken);
-		}
-	}
-	return ret;
 }
 
 /*

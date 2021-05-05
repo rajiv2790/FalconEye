@@ -60,3 +60,6 @@ BOOLEAN IsValidDllPath(CHAR* buffer, size_t size);
 BOOLEAN GetVolumeList();
 BOOLEAN GetDeviceForVolume(WCHAR volume, PWCHAR device);
 BOOLEAN ConvertDosPathToDevicePath(PWCHAR dosPath, PWCHAR devicePath);
+LONG compareFilename(
+    PUNICODE_STRING  FullImageName,
+    UNICODE_STRING str, BOOLEAN bGetLastToken);

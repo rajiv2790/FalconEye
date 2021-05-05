@@ -3,6 +3,7 @@
 #include "NtDefs.h"
 #include "ActionHistory.h"
 #include "Helper.h"
+#include "entry.h"
 
 NtWVMEntry* NtWVMBuffer = NULL;
 SIZE_T      freeNtWVMIdx = 0;
@@ -601,7 +602,37 @@ BOOLEAN CheckWriteSuspendHistoryForSetThrCtx(
     return true;
 }
 
-BOOLEAN CheckPriorWnfStateUpdate(ULONG callerPid, ULONG targetPid)
+BOOLEAN isPidExplorer(HANDLE process)
+{
+    BOOLEAN ret = FALSE;
+    ULONG size = 512; // Arbitrary, assuming that the process file name should fit
+    UNICODE_STRING explorer = RTL_CONSTANT_STRING(L"explorer.exe");
+
+    PUNICODE_STRING filename = (PUNICODE_STRING)ExAllocatePool(NonPagedPool, size);
+    if (filename == nullptr)
+    {
+        //Could not allocate memory to store filename
+        return FALSE;
+    }
+    if (!ZwQueryInformationProcess(process,
+        ProcessImageFileName, // 27
+        filename,
+        size - sizeof(WCHAR), //Ensure string will be NULL terminated
+        NULL))
+    {
+        if (compareFilename(filename, explorer, FALSE) == 0)
+        {
+                // kprintf("[+] falconeye: Ignoring OpenProcess for %wZ\n", filename);
+                ret = TRUE;
+        }
+    }
+    return ret;
+}
+
+BOOLEAN CheckPriorWnfStateUpdate(
+    ULONG callerPid, 
+    ULONG targetPid,
+    HANDLE targetPs)
 {
     // check for prior memory writes
     NtWVMEntry* wvmEntry = FindNtWriteVirtualMemoryEntry(callerPid, targetPid);
@@ -613,9 +644,11 @@ BOOLEAN CheckPriorWnfStateUpdate(ULONG callerPid, ULONG targetPid)
     NtUWnfSDEntry* entry = FindNtUpdateWnfStateDataEntry(callerPid);
     if (NULL != entry) {
         if (NULL == entry->Buffer && 0 == entry->Length) {
-            alertf("[+] FalconEye: **************************Alert**************************: \n"
-                "Attacker pid %d updating WNF state in victim pid %d \n",
-                callerPid, targetPid);
+            if (isPidExplorer(targetPs)) {
+                alertf("[+] FalconEye: **************************Alert**************************: \n"
+                    "Attacker pid %d updating WNF state in victim pid %d \n",
+                    callerPid, targetPid);
+            }
         }
         ExFreePool(entry);
     }

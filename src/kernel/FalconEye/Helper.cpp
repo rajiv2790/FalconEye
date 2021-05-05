@@ -193,7 +193,7 @@ BOOLEAN IsAddressKCT(PCHAR pAddr, HANDLE pid)
 
     NTSTATUS status = PsLookupProcessByProcessId((HANDLE)pid, &pEproc);
     if (!NT_SUCCESS(status)) {
-        kprintf("PsLookupProcessByProcessId failed", ret);
+        kprintf("PsLookupProcessByProcessId failed %x", status);
     }
     if (pEproc)
     {
@@ -400,4 +400,50 @@ BOOLEAN ConvertDosPathToDevicePath(PWCHAR dosPath, PWCHAR devicePath)
         return TRUE;
     }
     return FALSE;
+}
+
+/*
+* This function tokenizes the full file path
+* and compares the filename with the string supplied
+*/
+LONG compareFilename(
+    PUNICODE_STRING  FullImageName,
+    UNICODE_STRING str, BOOLEAN bGetLastToken)
+{
+    LONG ret = 1;
+    UNICODE_STRING token, remainingToken;
+    //Tokenize the FullImageName and compare the last token
+    if (bGetLastToken)
+    {
+        FsRtlDissectName(*FullImageName, &token, &remainingToken);
+        while (token.Length != 0)
+        {
+            if (remainingToken.Length == 0)
+            {
+                break;
+            }
+            FsRtlDissectName(remainingToken, &token, &remainingToken);
+        }
+        ret = RtlCompareUnicodeString(&token, &str, TRUE);
+    }
+    //Tokenize the FullImageName and compare to the remaining string
+    //First token is discarded
+    else
+    {
+        FsRtlDissectName(*FullImageName, &token, &remainingToken);
+        while (token.Length != 0)
+        {
+            if (remainingToken.Length == 0)
+            {
+                break;
+            }
+            if (RtlCompareUnicodeString(&remainingToken, &str, TRUE) == 0)
+            {
+                ret = 0;
+                break;
+            }
+            FsRtlDissectName(remainingToken, &token, &remainingToken);
+        }
+    }
+    return ret;
 }

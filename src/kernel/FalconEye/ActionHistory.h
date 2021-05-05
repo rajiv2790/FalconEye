@@ -119,4 +119,7 @@ BOOLEAN CheckWriteSuspendHistoryForSetThrCtx(
     ULONG targetPid,
     ULONG targetTid);
 
-BOOLEAN CheckPriorWnfStateUpdate(ULONG callerPid, ULONG targetPid);
+BOOLEAN CheckPriorWnfStateUpdate(
+    ULONG callerPid, 
+    ULONG targetPid,
+    HANDLE targetPs);

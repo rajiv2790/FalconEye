@@ -114,9 +114,9 @@ NTSTATUS DetourNtWriteVirtualMemory(
     if (SELF_PROCESS_HANDLE != ProcessHandle) {
         ULONG callerPid, targetPid;
         GetActionPids(ProcessHandle, &callerPid, &targetPid);
-        alertf("FalconEye: DetourNtWriteVirtualMemory: callerPid %d targetPid %d BaseAddr %p.\n", 
-            callerPid, targetPid, BaseAddress);
-        CheckPriorWnfStateUpdate(callerPid, targetPid);
+        alertf("FalconEye: DetourNtWriteVirtualMemory: callerPid %d targetPid %d BaseAddr %p BytesToWrite %d.\n", 
+            callerPid, targetPid, BaseAddress, NumberOfBytesToWrite);
+        CheckPriorWnfStateUpdate(callerPid, targetPid, ProcessHandle);
         AddNtWriteVirtualMemoryEntry(callerPid, targetPid, BaseAddress, Buffer, NumberOfBytesToWrite);
         
         // Check if the address being written to is in kernelbase.dll
@@ -338,12 +338,12 @@ NTSTATUS DetourNtConnectPort(
     _In_ PVOID                ConnectionInfo,
     _In_ PULONG               ConnectionInfoLength)
 {
-    /*HANDLE CurrentPsHandle = PsGetProcessId(PsGetCurrentProcess());
+    HANDLE CurrentPsHandle = PsGetProcessId(PsGetCurrentProcess());
     ULONG callerPid = ULONG((LONGLONG)CurrentPsHandle & 0xffffffff);
     if (NULL != ServerPortName) {
         kprintf("FalconEye: DetourNtConnectPort: callerPid %d serverPort %wZ connectionInfo %p.\n",
             callerPid, ServerPortName, ConnectionInfo);
-    }*/
+    }
     return NtConnectPortOrigPtr(ClientPortHandle, ServerPortName, SecurityQos, ClientSharedMemory, ServerSharedMemory, MaximumMessageLength, ConnectionInfo, ConnectionInfoLength);
 }
 
@@ -424,6 +424,22 @@ BOOL DetourNtUserSetProp(
     return NtUserSetPropOrigPtr(hWnd, Atom, Data);
 }
 
+BOOLEAN IsModuleExe(PUNICODE_STRING module)
+{
+    if (NULL == module) {
+        return FALSE;
+    }
+    // check if last 4 bytes are .exe
+    WCHAR exel[] = L".exe";
+    WCHAR exeu[] = L".EXE";
+    WCHAR* ext = module->Buffer + (module->Length/sizeof(WCHAR) - 4);
+    if (0 == wcscmp(ext, exel)
+        || 0 == wcscmp(ext, exeu)) {
+        return TRUE;
+    }
+    return FALSE;
+}
+
 HHOOK DetourNtUserSetWindowsHookEx(
     HINSTANCE Mod,
     PUNICODE_STRING UnsafeModuleName,
@@ -435,7 +451,9 @@ HHOOK DetourNtUserSetWindowsHookEx(
 {
     HANDLE currentPid = PsGetCurrentProcessId();
     kprintf("FalconEye: DetourNtUserSetWindowsHookEx: currentPid %d hMod %p ModuleName %wZ.\n", currentPid, Mod, UnsafeModuleName);
-    AddNtUserSetWindowsHookExEntry((ULONG64)currentPid, Mod, UnsafeModuleName, ThreadId, HookId, HookProc);
+    if (!IsModuleExe(UnsafeModuleName)) {
+        AddNtUserSetWindowsHookExEntry((ULONG64)currentPid, Mod, UnsafeModuleName, ThreadId, HookId, HookProc);
+    }
     return NtUserSetWindowsHookExOrigPtr(Mod, UnsafeModuleName, ThreadId, HookId, HookProc, Ansi);
 }
 
