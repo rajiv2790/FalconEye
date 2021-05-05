@@ -90,11 +90,24 @@ implementations
 
 ## References
 [Itzik Kotler and Amit Klein. Process Injection Techniques - Gotta Catch Them All, Blackhat USA Briengs, 2019](https://www.blackhat.com/us-19/briefings/schedule/#process-injection-techniques---gotta-catch-them-all-16010)
+
 [Atombombing: Brand new code injection for windows, 2016](https://blog.ensilo.com/atombombing-brand-new-code-injection-for-windows)
 
 [Propagate - a new code injection trick, 2017](http://www.hexacorn.com/blog/2017/10/26/propagate-a-new-code-injection-trick/)
 
 [Windows process injection: Extra window bytes, 2018](https://modexp.wordpress.com/2018/08/26/process-injection-ctray/)
+
+[Pavel Asinovsky. Diving into zberp's unconventional process injection technique, 2016](https://securityintelligence.com/diving-into-zberps-unconventional-process-injection-technique/)
+
+[Rotem Kerner. Ctrl-inject, 2018](https://blog.ensilo.com/ctrl-inject)
+
+[Windows process injection: Consolewindowclass, 2018](https://modexp.wordpress.com/2018/09/12/process-injection-user-data/)
+
+[Windows process injection: Windows notication facility, 2018](https://modexp.wordpress.com/2019/06/15/4083/)
+
+[A paradox: Writing to another process without openning it nor actually writing to it, 2007](http://blog.txipinet.com/2007/04/05/69-a-paradox-writing-to-another-process-without-openning-it-nor-actually-writing-to-it/)
+
+[Windows process injection: Service control handler, 2018](https://modexp.wordpress.com/2018/08/30/windows-process-injection-control-handler/)
 
 ## License Terms
 FalconEye is licensed to you under [Apache 2.0](COPYING) open source license. 
