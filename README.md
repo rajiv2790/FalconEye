@@ -25,9 +25,9 @@ detection, one can refer to the references section.
 | SetWindowLong (Extra window memory injection) | &check; | QueueUserApc for memset into victim process |
 | Unmap + Overwrite                             | &check; | Unmapping ntdll |
 | Kernel Ctrl Table                             | &check; | Detect if NtWriteVirtualMemory is overwriting KernelCallbackTable field in the PEB of the victim |
-| USERDATA                                      |         |    |
+| USERDATA                                      | &check; | Check if WPM data is in conhost.exe range. If so check if any function pointers matcher earlier WPM address   |
 | Ctrl-inject                                   | &check; | Detect if the attacker does WPM in victim's KernelBase.dll range   |
-| ALPC Callback                                 |         |    |
+| ALPC Callback                                 | &check; | Extract victim pid in NtConnectPort calls to ALPC port. For attacker-victim pid tuple check prior WPM calls and apply Floating code detection |
 | WNF Callback                                  | &check; | WPM followed by UpdateWNFStateData call   |
 | SetWindowsHook                                | &check;       |    |
 | Service Control                               | &check; | WPM overwriting Service IDE. Can be made more precise   |
@@ -80,13 +80,28 @@ implementations
 
 ## Getting Started
 
-
-### Prerequisite
+### Prerequisites
+1. Windows 10 Build 1903/1909
+2. Microsoft Visual Studio 2019 onwards
+3. Virtualization Software such as VmWare, Hyper-V
 
 ### Installation
+#### Build
+1. Open the solution with Visual Studio 2019
+2. Select x64 as build platform
+3. Build solution. This should generate FalconEye.sys binary under src\kernel\FalconEye\x64\Debug or src\kernel\FalconEye\x64\Release
 
-### Usages
+#### Test Machine Setup
+1. Install Windows 10 Build 1903/1909 in a VM
+2. Configure VM for testing unsigned driver
+ - Using bcdedit, disable integrity checks : ```BCDEDIT /set nointegritychecks ON```
+3. Run DbgView from sysinternals in the VM or start a debugging connection using WinDbg.
 
+### Usage
+1. Copy FalconEye.sys to the Windows 10 VM
+2. Load FalconEye.sys as 'On Demand' load driver using OSR Loader or similar tools
+3. Run injection test tools such as pinjectra, minjector or other samples
+4. Monitor debug logs either via WinDbg or DbgView
 
 ## References
 [Itzik Kotler and Amit Klein. Process Injection Techniques - Gotta Catch Them All, Blackhat USA Briengs, 2019](https://www.blackhat.com/us-19/briefings/schedule/#process-injection-techniques---gotta-catch-them-all-16010)
