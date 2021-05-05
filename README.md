@@ -38,7 +38,6 @@ detection, one can refer to the references section.
 | Shellcode injection                           | &check; | New thread started from floating code. DLL path being written by WPM    | MInjector |
 | Image Mapping                                 | &check; | Thread started from floating code. PE header being written by WPM. DLL path being written by WPM | MInjector |
 | Thread Reuse                                  | &check; | Thread started from floating code. DLL path being written by WPM  | MInjector |
-| GhostWriting                                  |         |    |
 
 
 ### Architecture Overview
