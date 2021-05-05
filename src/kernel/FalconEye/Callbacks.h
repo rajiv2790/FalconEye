@@ -15,3 +15,5 @@ VOID CreateThreadNotifyRoutineEx(
 	_In_ HANDLE ThreadId,
 	_In_ BOOLEAN Create
 );
+
+void AddToOPT(POB_PRE_OPERATION_INFORMATION PreInfo, HANDLE openedPID);

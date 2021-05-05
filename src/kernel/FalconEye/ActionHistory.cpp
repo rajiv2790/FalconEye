@@ -591,9 +591,10 @@ BOOLEAN CheckWriteSuspendHistoryForSetThrCtx(
     NtSTEntry* stEntry = FindNtSuspendThreadEntry(callerPid, targetPid);
     if (NULL != stEntry) {
         if (targetTid == stEntry->targetTid) {
-            alertf("[+] FalconEye: **************************Alert**************************: \n"
+            alertf("\n[+] FalconEye: **************************Alert**************************: \n"
                 "Attacker pid %d setting context for suspended thread %d in victim pid %d \n",
                 callerPid, targetTid, targetPid);
+            alertf("\n");
         }
         ExFreePool(stEntry);
     }
@@ -646,9 +647,10 @@ BOOLEAN CheckPriorWnfStateUpdate(
     if (NULL != entry) {
         if (NULL == entry->Buffer && 0 == entry->Length) {
             if (isPidExplorer(targetPs)) {
-                alertf("[+] FalconEye: **************************Alert**************************: \n"
+                alertf("\n[+] FalconEye: **************************Alert**************************: \n"
                     "Attacker pid %d updating WNF state in victim pid %d \n",
                     callerPid, targetPid);
+                alertf("\n");
             }
         }
         ExFreePool(entry);

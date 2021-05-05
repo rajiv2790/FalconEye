@@ -188,17 +188,28 @@ void __fastcall SyscallStub(
 		if (0x45 == SystemCallIndex) {
 			*SystemCallFunction = DetourAddress;
 		}
-		// If the aPID is present in OpenProcessTable, only then go through detour
-		HANDLE aPID = PsGetCurrentProcessId();
-		OpenProcessNode node = { aPID, NULL };
-		PVOID pFoundEntry = 0;
-		KIRQL oldIrql;
-		KeAcquireSpinLock(&FeOptLock.lock, &oldIrql);
-		pFoundEntry = RtlLookupElementGenericTable(&OpenProcessTable, &node);
-		KeReleaseSpinLock(&FeOptLock.lock, oldIrql);
-		if (pFoundEntry)
-		{
+		// Open process pid map exception for NtSetContextThread
+		else if (0x185 == SystemCallIndex) {
 			*SystemCallFunction = DetourAddress;
+		}
+		// Open process pid map exception for NtSuspendThread
+		else if (0x1b6 == SystemCallIndex) {
+			*SystemCallFunction = DetourAddress;
+		}
+		else
+		{
+			// If the aPID is present in OpenProcessTable, only then go through detour
+			HANDLE aPID = PsGetCurrentProcessId();
+			OpenProcessNode node = { aPID, NULL };
+			PVOID pFoundEntry = 0;
+			KIRQL oldIrql;
+			KeAcquireSpinLock(&FeOptLock.lock, &oldIrql);
+			pFoundEntry = RtlLookupElementGenericTable(&OpenProcessTable, &node);
+			KeReleaseSpinLock(&FeOptLock.lock, oldIrql);
+			if (pFoundEntry)
+			{
+				*SystemCallFunction = DetourAddress;
+			}
 		}
 	}
 }
