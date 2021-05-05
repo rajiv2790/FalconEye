@@ -39,9 +39,32 @@ detection, one can refer to the references section.
 
 
 ### Architecture Overview
-Diagram
 
 ![alt text](diagrams/FalconEye_Software_Architecture.png)
+
+1. The driver is an on-demand load driver
+2. The initialization includes setting up callbacks and syscall hooks via
+   libinfinityhook
+3. The callbacks maintain a map of Pids built from cross process activity such
+   as OpenProcess but it is not limited to OpenProcess
+4. Subsequent callbacks and syscall hooks use this Pid map to reduce the noise
+   in processing. As part of noise reduction, syscall hooks filter out the same
+process activity.
+5. The detection logic is divided in subcategories namely - stateless (example:
+   Atombombing), stateful (Unmap+Overwrite) and Floating code(Shellcode from
+multiple techniques)
+6. For stateful detections, syscall hooks record an ActionHistory which is
+   implemented as a circular buffer. e.g. It records all the
+NtWriteVirtualMemory calls where the caller process is different from the
+target process.
+7. The detection logic has common anomaly detection functionality such as
+   floating code detection or detection for shellcode triggers in remote
+processes. Both callbacks and syscall hooks invoke this common functionality
+for actual detection.
+
+**Please note that, our focus has been detection and not creating a performant
+detection engine. We’ll continue on making those efforts past this
+presentation.
 
 
 ## Files
