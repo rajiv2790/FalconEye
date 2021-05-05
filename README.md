@@ -7,6 +7,12 @@ You can check our presentation at [2021 Blackhat ASIA Arsenal](https://www.black
 
 ## Project Overview
 
+### Detection Coverage
+| Technique     | Coverage      | Detection  |
+| ------------- | ------------- | -----------|
+| Atombombing   | - [x]         |  |
+| Instrumentation callback injection      | - [x]      |    |
+| Reflective DLL Injection | - [x]      |    |
 
 ###Architecture Overview
 
