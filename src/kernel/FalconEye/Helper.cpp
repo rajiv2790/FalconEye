@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "Helper.h"
+#include "NtDefs.h"
 
 ULONG GetProcessIdByHandle(HANDLE process)
 {
@@ -176,6 +177,31 @@ BOOLEAN IsAddressInKernelBase(PCHAR pAddr)
     if (kernelbaseBase != NULL && kernelbaseEnd != NULL)
     {
         if ((pAddr >= (PCHAR)kernelbaseBase) && (pAddr <= (PCHAR)kernelbaseEnd))
+        {
+            return TRUE;
+        }
+    }
+    return FALSE;
+}
+
+BOOLEAN IsAddressKCT(PCHAR pAddr, HANDLE pid)
+{
+    PEPROCESS pEproc = NULL;
+    PPEB peb = NULL;
+    ULONG64 kct = 0;
+    PCHAR kctOffset = NULL;
+
+    NTSTATUS status = PsLookupProcessByProcessId((HANDLE)pid, &pEproc);
+    if (!NT_SUCCESS(status)) {
+        kprintf("PsLookupProcessByProcessId failed", ret);
+    }
+    if (pEproc)
+    {
+        peb = PsGetProcessPeb(pEproc);
+        kct = FIELD_OFFSET(PEB, KernelCallbackTable);
+        kctOffset = (PCHAR)peb + kct;
+
+        if (kctOffset == pAddr)
         {
             return TRUE;
         }

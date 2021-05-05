@@ -51,6 +51,7 @@ BOOLEAN GetActionPids(HANDLE ProcessHandle, ULONG* pCallerPid, ULONG* pTargetPid
 BOOLEAN GetActionPidsByThread(HANDLE ThreadHandle, ULONG* pCallerPid, ULONG* pTargetPid);
 ULONG IsKnownAPIOffset(PCHAR pAddr);
 BOOLEAN IsAddressInKernelBase(PCHAR pAddr);
+BOOLEAN IsAddressKCT(PCHAR pAddr, HANDLE pid);
 BOOLEAN IsValidPEHeader(CHAR* buffer, size_t size);
 BOOLEAN IsValidDllPath(CHAR* buffer, size_t size);
 BOOLEAN GetVolumeList();

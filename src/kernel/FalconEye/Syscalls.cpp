@@ -120,10 +120,23 @@ NTSTATUS DetourNtWriteVirtualMemory(
         AddNtWriteVirtualMemoryEntry(callerPid, targetPid, BaseAddress, Buffer, NumberOfBytesToWrite);
         
         // Check if the address being written to is in kernelbase.dll
+        // Ctrl-Inject attack
         if (IsAddressInKernelBase((PCHAR)BaseAddress))
         {
             alertf("\n[+] FalconEye: **************************Alert**************************: \n"
                 "Possible Ctrl-Inject attack: Attacker pid %llu writing to KernelBase.dll in victim pid %llu at address %p\n",
+                callerPid,
+                targetPid,
+                BaseAddress);
+            alertf("\n");
+        }
+
+        // Check if the address being written to is PEB of the victim
+        // Kernel Control Table/Kernel Callback Table attack
+        if (IsAddressKCT((PCHAR)BaseAddress, (HANDLE)targetPid))
+        {
+            alertf("\n[+] FalconEye: **************************Alert**************************: \n"
+                "Possible KernelCallbackTable attack: Attacker pid %llu writing to KernelCallbackTable in victim pid %llu at address %p\n",
                 callerPid,
                 targetPid,
                 BaseAddress);
@@ -432,7 +445,27 @@ LONG_PTR DetourNtUserSetWindowLongPtr(
     LONG_PTR NewValue,
     BOOL Ansi)
 {
-    kprintf("FalconEye: DetourNtUserSetWindowLongPtr: hMod %p.\n", hWnd);
+    HANDLE currentPID = PsGetCurrentProcessId();
+    NtWVMEntry* entry = FindNtWriteVirtualMemoryEntryByAddress((ULONG64)currentPID, (PVOID)NewValue);
+    if (entry)
+    {
+        UINT64 payloadAddress = 0;
+        RtlCopyMemory(&payloadAddress, &entry->initialData[8], sizeof(UINT64));
+        if (CheckMemImageByAddress((PVOID)payloadAddress, (HANDLE)entry->targetPid))
+        {
+            alertf("FalconEye: DetourNtUserSetWindowLongPtr: hMod %p %p\n", hWnd, NewValue);
+            alertf("\n[+] FalconEye: **************************Alert**************************: \n"
+                "Suspected Extra Window Memory Injection attack: attacker pid %d victim pid %d. FloatingCode address %p\n",
+                currentPID,
+                entry->targetPid,
+                payloadAddress);
+            alertf("\n");
+            //kprintf("FalconEye: DetourNtUserSetProp: Data %p NtWVMEntry %p TargetPid %d FloatingCode %x\n", Data, entry->targetAddr, entry->targetPid, payloadAddress);
+        }
+
+        ExFreePool(entry);
+    }
+
     AddNtUserSetWindowLongPtrEntry(hWnd, Index, NewValue);
     return NtUserSetWindowLongPtrOrigPtr(hWnd, Index, NewValue, Ansi);
 }
@@ -541,8 +574,8 @@ PVOID GetDetourFunction(unsigned int idx)
         return DetourNtUserSetProp;
     case 0x108C:
         return DetourNtUserSetWindowsHookEx;
-    //case 0x14E9:
-        //return DetourNtUserSetWindowLongPtr;
+    case 0x14E9:
+        return DetourNtUserSetWindowLongPtr;
     //case 0x1012: 
         //return DetourNtUserPostMessage;
     //case 0x100A:

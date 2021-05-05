@@ -94,6 +94,8 @@ FEOpenProcessCallback(
 					//Check if the "attacker" process needs to be filtered
 					if (!isProcessFiltered())
 					{
+						// Get PEB of the victim process
+						
 						// Add "attacker" and "victim" PID to OpenProcessTable
 						OpenProcessNode node = { curPID, openedPID };
 						BOOLEAN newElement = FALSE;
