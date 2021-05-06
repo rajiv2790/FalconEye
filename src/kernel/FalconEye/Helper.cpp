@@ -273,7 +273,7 @@ BOOLEAN GetAsciiPathFromBuffer(CHAR* buffer, size_t offset, size_t size)
         }
     }
     alertf("\n[+] FalconEye: **************************Alert**************************\n"
-        "DLL path at offset %d : %s", offset, path);
+        "DLL path being written into victim : %s", path);
     alertf("\n");
     return TRUE;
 }
