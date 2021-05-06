@@ -64,7 +64,7 @@ target process.
 processes. Both callbacks and syscall hooks invoke this common functionality
 for actual detection.
 
-NOTE: our focus has been detection and not creating a performant
+NOTE: Our focus has been detection and not creating a performant
 detection engine. We’ll continue on these efforts past the BlackHat
 presentation.
 
@@ -74,7 +74,6 @@ presentation.
 .
 ├── src 
 │   ├── FalconEye ---------------------------# FalconEye user and kernel space
-implementations
 │   └── libinfinityhook ---------------------# Kernel hook implementation
 ├── 2021BHASIA_FalconEye.pdf
 └── README.md
@@ -85,7 +84,7 @@ implementations
 ### Prerequisites
 1. Windows 10 Build 1903/1909
 2. Microsoft Visual Studio 2019 onwards
-3. Virtualization Software such as VmWare, Hyper-V
+3. Virtualization Software such as VmWare, Hyper-V (Optional)
 
 ### Installation
 #### Build
@@ -100,13 +99,19 @@ implementations
 3. Run DbgView from sysinternals in the VM or start a debugging connection using WinDbg.
 
 ### Usage
-1. Copy FalconEye.sys to the Windows 10 VM
+1. Copy FalconEye.sys to the Test Machine (Windows 10 VM)
 2. Load FalconEye.sys as 'On Demand' load driver using OSR Loader or similar tools
 3. Run injection test tools such as pinjectra, minjector or other samples
 4. Monitor debug logs either via WinDbg or DbgView
 
 ## References
+[InfinityHook, 2019](https://github.com/everdox/InfinityHook/)
+
 [Itzik Kotler and Amit Klein. Process Injection Techniques - Gotta Catch Them All, Blackhat USA Briengs, 2019](https://www.blackhat.com/us-19/briefings/schedule/#process-injection-techniques---gotta-catch-them-all-16010)
+
+[Pinjectra, 2019](https://github.com/SafeBreach-Labs/pinjectra/)
+
+[Mapping-Injection, 2020](https://github.com/antonioCoco/Mapping-Injection)
 
 [Atombombing: Brand new code injection for windows, 2016](https://blog.ensilo.com/atombombing-brand-new-code-injection-for-windows)
 
