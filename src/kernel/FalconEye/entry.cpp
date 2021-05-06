@@ -276,7 +276,7 @@ BOOLEAN CheckModuleInSetWindowsHookHistory(
 	if (NULL != entry && entry->Pid != (ULONG64)ProcessId) {
 		alertf("[+] FalconEye: Pid %llu loaded %wZ, %p\n", ProcessId, FullImageName);
 		alertf("\n[+] FalconEye: **************************Alert**************************: \n"
-		"LoadImage callback found %wZ registered by SetWindowsHook; attacker pid %d loaded in victim pid %d\n", 
+		"LoadImage callback found %wZ registered using SetWindowsHook by attacker pid %d being loaded in victim pid %d\n", 
 			FullImageName, entry->Pid, ProcessId);
 		alertf("\n");
 		ExFreePool(entry);
